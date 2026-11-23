@@ -17,7 +17,9 @@ interface Props {
 }
 
 function Cover({ url, name }: { url?: string | null; name: string }) {
-  if (!url) {
+  const [broken, setBroken] = useState(false);
+
+  if (!url || broken) {
     return (
       <Center
         h={116}
@@ -32,7 +34,16 @@ function Cover({ url, name }: { url?: string | null; name: string }) {
       </Center>
     );
   }
-  return <Image src={url} h={116} radius="sm" fit="cover" alt={name} />;
+  return (
+    <Image
+      src={url}
+      h={116}
+      radius="sm"
+      fit="cover"
+      alt={name}
+      onError={() => setBroken(true)}
+    />
+  );
 }
 
 function formatBytes(bytes: number): string {

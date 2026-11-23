@@ -462,16 +462,50 @@ def replace_asset(bundle: Path, asset: str, new_file: Path, out_bundle: Path) ->
         raise RuntimeError("bundle 换回失败")
 
 
-async def deploy_payload(device: Device, payload: Path, root: str) -> int:
-    """把 payload 目录里的**内容**放进 <root>/（push 的语义是 <目标>/<目录名>）。"""
+PAYLOAD_SKIP_SUFFIXES = {".pdb", ".txt", ".md", ".xml", ".lib", ".exp", ".iobj", ".ipdb"}
+PAYLOAD_SKIP_DIRS = {"licenses", "license"}
+
+
+def stage_payload(payload: Path) -> tuple[Path, list[str]]:
+    """挑出真正要上设备的文件：跳过调试符号、说明文本与许可证目录。"""
+    stage = WORK_DIR / "payload" / (payload.name or "payload")
+    if stage.exists():
+        shutil.rmtree(stage)
+    skipped: list[str] = []
+    for path in sorted(payload.rglob("*")):
+        rel = path.relative_to(payload)
+        if any(part.lower() in PAYLOAD_SKIP_DIRS for part in rel.parts[:-1]):
+            if path.is_file():
+                skipped.append(str(rel))
+            continue
+        if path.is_file() and path.suffix.lower() in PAYLOAD_SKIP_SUFFIXES:
+            skipped.append(str(rel))
+            continue
+        if path.is_dir():
+            continue
+        target = stage / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, target)
+    return stage, skipped
+
+
+async def deploy_payload(device: Device, payload: Path, root: str) -> dict:
+    """把载荷里**运行时需要的内容**放进 <root>/。
+
+    调试符号（.pdb）、说明文本（.txt/.md）和 licenses/ 对运行没有任何作用，
+    投上去只是拖长安装时间，这里直接跳过。
+    """
+    staged, skipped = stage_payload(payload)
+    if skipped:
+        log(f"  跳过 {len(skipped)} 个非运行时文件（调试符号 / 说明 / 许可证）")
     sent = 0
     await device.makedirs(root)
-    for child in sorted(payload.iterdir()):
+    for child in sorted(staged.iterdir()):
         if child.name.startswith("."):
             continue
         await device.push(child, root)
         sent += 1
-    return sent
+    return {"sent": sent, "skipped": len(skipped)}
 
 
 # --------------------------------------------------------------------------- 模组管理
@@ -987,8 +1021,9 @@ async def do_install(payload: Path | None, skip_payload: bool, skip_patch: bool)
             if payload is None or not payload.is_dir():
                 bad(f"载荷目录不存在：{payload}")
                 return 1
-            sent = await deploy_payload(device, payload, f"/Documents/{LOADER_DIR}")
-            ok(f"已投放 {sent} 项 -> /Documents/{LOADER_DIR}")
+            result = await deploy_payload(device, payload, f"/Documents/{LOADER_DIR}")
+            ok(f"已投放 {result['sent']} 项 -> /Documents/{LOADER_DIR}"
+               + (f"（跳过 {result['skipped']} 个非运行时文件）" if result['skipped'] else ""))
     finally:
         await close_device(session)
 

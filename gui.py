@@ -85,6 +85,20 @@ def _http_download(url: str, target: Path, timeout: float = 60.0) -> int:
     return total
 
 
+def _absolute(base: str, value: str | None) -> str | None:
+    """市场返回的 coverUrl / downloadUrl 是相对路径（/api/...），补成绝对地址。
+
+    页面是 http://127.0.0.1:<port>，相对路径会被当成页面自己的地址，封面就全 404 了。
+    """
+    if not value:
+        return None
+    if value.startswith("http://") or value.startswith("https://"):
+        return value
+    if value.startswith("/"):
+        return base + value
+    return f"{base}/{value}"
+
+
 def _locate_mod_root(archive_path: Path, mod_id: str) -> Path:
     """解开市场包并找到真正的模组目录（含 <目录名>.dll 的那一层）。"""
     stage = engine.WORK_DIR / "market" / "extract" / mod_id
@@ -361,9 +375,13 @@ class Api:
             base = self.market_state()["baseUrl"].rstrip("/")
             query = urllib.parse.urlencode({"page": int(page), "lang": lang})
             data = _http_json(f"{base}/api/mods?{query}")
+            items = data.get("items") or []
+            for item in items:
+                item["coverUrl"] = _absolute(base, item.get("coverUrl"))
+                item["downloadUrl"] = _absolute(base, item.get("downloadUrl"))
             return {"ok": True, "total": data.get("total"), "page": data.get("page"),
                     "pageSize": data.get("pageSize"), "tags": data.get("tags") or [],
-                    "items": data.get("items") or []}
+                    "items": items}
         except Exception as error:  # noqa: BLE001
             return {"ok": False, "error": str(error)}
 
@@ -372,8 +390,11 @@ class Api:
             self._require_consent()
             base = self.market_state()["baseUrl"].rstrip("/")
             query = urllib.parse.urlencode({"lang": lang})
-            return {"ok": True, "detail": _http_json(
-                f"{base}/api/mods/{urllib.parse.quote(mod_id)}?{query}")}
+            detail = _http_json(f"{base}/api/mods/{urllib.parse.quote(mod_id)}?{query}")
+            detail["coverUrl"] = _absolute(base, detail.get("coverUrl"))
+            for version in detail.get("versions") or []:
+                version["downloadUrl"] = _absolute(base, version.get("downloadUrl"))
+            return {"ok": True, "detail": detail}
         except Exception as error:  # noqa: BLE001
             return {"ok": False, "error": str(error)}
 

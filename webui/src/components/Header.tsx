@@ -1,5 +1,5 @@
 import { Badge, Button, Group, Loader, Menu, Text, Title, Tooltip } from '@mantine/core';
-import { IconPlugConnected, IconPower, IconRefresh } from '@tabler/icons-react';
+import { IconDownload, IconPlugConnected, IconPower, IconRefresh } from '@tabler/icons-react';
 import type { Probe, Task } from '../types';
 
 interface Props {
@@ -8,11 +8,14 @@ interface Props {
   task: Task;
   mock: boolean;
   onRefresh: () => void;
+  onInstall: () => void;
   onReconnect: () => void;
   onQuit: () => void;
 }
 
-export function Header({ probe, probing, task, mock, onRefresh, onReconnect, onQuit }: Props) {
+export function Header({
+  probe, probing, task, mock, onRefresh, onInstall, onReconnect, onQuit,
+}: Props) {
   const device = probe?.device;
   const game = probe?.game;
   const summary = [
@@ -60,6 +63,15 @@ export function Header({ probe, probing, task, mock, onRefresh, onReconnect, onQ
             <IconPlugConnected size={16} />
           </Button>
         </Tooltip>
+        <Button
+          variant="light"
+          leftSection={<IconDownload size={16} />}
+          onClick={onInstall}
+          loading={task.running && task.name === '安装'}
+          disabled={probe?.connected === false || (task.running && task.name !== '安装')}
+        >
+          一键安装
+        </Button>
         <Button
           leftSection={<IconRefresh size={16} />}
           onClick={onRefresh}

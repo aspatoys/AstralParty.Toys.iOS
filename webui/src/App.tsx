@@ -135,6 +135,16 @@ export default function App() {
     });
   }, [bridge]);
 
+  // 一键安装：载荷取默认目录，注入 + 投放一起做
+  const quickInstall = useCallback(() => {
+    if (!bridge) return;
+    void bridge.install(null, true, true).then((result) => {
+      if (!result.started) {
+        notifications.show({ title: '没能启动安装', message: result.error ?? '', color: 'red' });
+      }
+    });
+  }, [bridge]);
+
   if (bridgeError) {
     return (
       <Center h="100vh" p="xl">
@@ -192,6 +202,7 @@ export default function App() {
           task={task}
           mock={isMock(bridge)}
           onRefresh={startRefresh}
+          onInstall={quickInstall}
           onReconnect={() => {
             void bridge.disconnect();
             void probe.refetch();
