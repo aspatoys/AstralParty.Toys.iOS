@@ -1,4 +1,4 @@
-import { Badge, Button, Group, Loader, Menu, Text, Title, Tooltip } from '@mantine/core';
+import { Badge, Button, Divider, Group, Loader, Menu, Text, Title, Tooltip } from '@mantine/core';
 import { IconDownload, IconPlugConnected, IconPower, IconRefresh } from '@tabler/icons-react';
 import type { Probe, Task } from '../types';
 
@@ -18,14 +18,13 @@ export function Header({
 }: Props) {
   const device = probe?.device;
   const game = probe?.game;
-  const summary = [
-    device?.name,
-    device?.model,
+  // DeviceName 是用户给设备起的名字，不是机型；机型是 ProductType（例如 iPhone18,3）
+  const model = device?.model ?? '未知机型';
+  const deviceName = device?.name ?? '—';
+  const facts = [
     device?.ios ? `iOS ${device.ios}` : null,
-    game ? `${game.name} ${game.version}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+    game ? `${game.name} ${game.version}` : (probe?.error ?? null),
+  ].filter(Boolean) as string[];
 
   return (
     <Group
@@ -35,7 +34,7 @@ export function Header({
       wrap="nowrap"
       style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
     >
-      <Group gap={10} wrap="nowrap">
+      <Group gap={10} wrap="nowrap" style={{ flex: '0 0 auto' }}>
         <Title order={4}>AstralParty.Toys</Title>
         <Badge variant="light">iOS</Badge>
         {mock && (
@@ -45,11 +44,35 @@ export function Header({
         )}
       </Group>
 
-      <Text size="sm" c="dimmed" truncate style={{ flex: 1, textAlign: 'center' }}>
-        {probe ? (probe.connected ? summary : '未连接设备') : '正在探测设备…'}
-      </Text>
+      <Divider orientation="vertical" />
 
-      <Group gap="xs" wrap="nowrap">
+      <Group gap={8} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+        {probe?.connected ? (
+          <>
+            <Badge
+              variant="default"
+              ff="monospace"
+              style={{ flex: '0 0 auto', cursor: 'default' }}
+            >
+              {model}
+            </Badge>
+            <Tooltip label={deviceName} withArrow openDelay={400}>
+              <Text size="sm" fw={500} truncate style={{ minWidth: 0, flex: '0 1 auto' }}>
+                {deviceName}
+              </Text>
+            </Tooltip>
+            <Text size="sm" c="dimmed" truncate style={{ minWidth: 0, flex: '1 1 auto' }}>
+              {facts.join(' · ')}
+            </Text>
+          </>
+        ) : (
+          <Text size="sm" c="dimmed" truncate>
+            {probe ? '未连接设备' : '正在探测设备…'}
+          </Text>
+        )}
+      </Group>
+
+      <Group gap="xs" wrap="nowrap" style={{ flex: '0 0 auto' }}>
         {task.running && (
           <Group gap={6} wrap="nowrap">
             <Loader size="xs" />
