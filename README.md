@@ -1,4 +1,4 @@
-# CesiumLoader iOS
+# AstralParty.Toys.iOS
 
 在 iOS 上为《吉星派对 / Astral Party》加载 CesiumLoader 生态的模组。
 
@@ -74,15 +74,24 @@ uv run main.py
 uv run gui.py
 ```
 
-| 页签 | 内容 |
+| 页面 | 内容 |
 |---|---|
-| 总览 | 设备与游戏、catalog、代码包（哈希 / 大小 / 资产数）、补丁状态、加载器、上次启动的 ok/failed、引导日志尾部、注入标记 |
+| 概览 | 设备与游戏、catalog、代码包（哈希 / 大小 / 资产数）、补丁状态、加载器、上次启动的 ok/failed、引导日志尾部、注入标记 |
 | 模组 | 全部模组（启用状态、版本、作者、平台）；点开关启停，点「编辑」直接改该模组的 `config.json` |
-| 日志 | `<加载器根目录>/logs/` 的文件列表与内容 |
-| 操作 | 注入代码包 / 投放载荷 / 还原 / 完全卸载，底部是实时输出 |
+| 市场 | 首次进入需同意免责声明（不同意就完全不连市场）；列表、详情、按版本安装 |
+| 自定义 | 卡面方案：列出 `skins/` 里的方案、导入 ZIP、把某个方案设为启用（写 `CardSkinMod` 的 `ActiveSkin`） |
+| 文件 | 直接浏览设备的 `/Documents`：逐层进入、预览文本、删除 |
+| 设置 | 市场地址与免责声明状态、安装 / 还原 / 卸载（维护）、关于 |
+
+所有要等设备的操作都有加载态：按钮转圈、整页骨架屏、开关行内加载指示、底部实时输出。
+市场与卡面导入属于长任务，进度写在底部输出里，完成或失败会弹通知。
 
 启停就是搬目录（`mods/` ↔ `disabled_mods/`），界面状态以目录为准，不看 sidecar 里的 `enabled`。
 配置按整段文本编辑并原样写回（不重新序列化，注释与写法都保留），保存前会校验能否解析回 JSON 对象。
+市场列表与详情由宿主侧发起 HTTP（不走页面 `fetch`），因此不受跨域限制。
+
+界面用 React + TypeScript + Vite 写，组件库是 Mantine。`webui/dist/` 是预构建产物，
+**不装 Node 也能直接跑**；改前端才需要进入 `webui/` 执行 `pnpm install && pnpm build`。
 
 Windows 上界面用的是 **WebView2**（与 AstralParty.Toys 同一个引擎），需要系统装有 WebView2
 Runtime —— Windows 10/11 通常自带。
@@ -162,10 +171,10 @@ uv run main.py uninstall    # 还原代码包 + 删除 CesiumLoader 目录与标
 ## 目录结构
 
 ```
-CesiumLoader4iOS/
+AstralParty.Toys.iOS/
 ├─ main.py                     命令行：交互式安装 / 检测
 ├─ gui.py                      图形界面（pywebview）
-├─ webui/                      界面（index.html / app.js / style.css）
+├─ webui/                      界面源码（React + TS + Vite；dist/ 为预构建产物）
 ├─ tools/
 │  ├─ CesiumIosPatcher/        Mono.Cecil 注入器源码
 │  ├─ bundle_assets.py         UnityFS 读写（UnityPy）

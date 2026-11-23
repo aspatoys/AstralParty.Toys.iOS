@@ -10,6 +10,9 @@ catalog_*.json
 __pycache__/
 *.pyc
 
+# 前端依赖（dist 是预构建产物，要入库）
+webui/node_modules/
+
 # 注入器构建输出
 tools/CesiumIosPatcher/bin/
 tools/CesiumIosPatcher/obj/

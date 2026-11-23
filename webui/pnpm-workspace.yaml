@@ -1,0 +1,4 @@
+# pnpm 10 起，构建脚本白名单等设置从 package.json 的 "pnpm" 字段搬到这里。
+# esbuild 需要一个安装期脚本去放好它自己的原生二进制，否则 vite build 会失败。
+onlyBuiltDependencies:
+  - esbuild
