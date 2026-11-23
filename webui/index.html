@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CesiumLoader iOS</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">CesiumLoader<span>iOS</span></div>
+  <div class="device" id="device-summary">正在探测设备…</div>
+  <div class="spacer"></div>
+  <button id="btn-refresh" class="primary">刷新</button>
+</header>
+
+<nav class="tabs">
+  <button data-tab="overview" class="active">总览</button>
+  <button data-tab="mods">模组 <span class="chip" id="mod-count">–</span></button>
+  <button data-tab="logs">日志</button>
+  <button data-tab="actions">操作</button>
+</nav>
+
+<main>
+  <section id="tab-overview" class="panel active">
+    <div class="grid" id="cards">
+      <div class="card muted">点右上角「刷新」读取设备与加载器状态</div>
+    </div>
+    <div id="issues" class="issues"></div>
+  </section>
+
+  <section id="tab-mods" class="panel">
+    <div class="toolbar">
+      <input id="mod-filter" type="search" placeholder="筛选模组…">
+      <label class="toggle"><input type="checkbox" id="only-enabled"> 只看启用</label>
+      <span class="hint" id="mod-hint"></span>
+    </div>
+    <div class="table-wrap">
+      <table class="mods">
+        <thead>
+          <tr><th class="w-switch">启用</th><th>模组</th><th>版本</th><th>作者</th><th>平台</th><th class="w-act">配置</th></tr>
+        </thead>
+        <tbody id="mod-rows"><tr><td colspan="6" class="muted">尚未读取</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="tab-logs" class="panel">
+    <div class="toolbar">
+      <button id="btn-reload-logs">重新读取日志列表</button>
+      <span class="hint" id="log-hint"></span>
+    </div>
+    <div class="split">
+      <ul id="log-list" class="list"></ul>
+      <pre id="log-view" class="viewer">选择左侧日志查看</pre>
+    </div>
+  </section>
+
+  <section id="tab-actions" class="panel">
+    <div class="card">
+      <h3>安装 / 更新</h3>
+      <p class="muted">注入代码包：改写容器里那份热更代码包，让游戏启动时加载引导。<br>
+      投放载荷：把 <code>CesiumLoader.Android.Bootstrap.dll</code>、<code>sdk/</code>、<code>mods/</code> 写进 <code>Documents/CesiumLoader/</code>。</p>
+      <div class="row">
+        <input id="payload-path" type="text" placeholder="载荷目录（payload/CesiumLoader）">
+        <button id="btn-pick">选择…</button>
+      </div>
+      <div class="row">
+        <label class="toggle"><input type="checkbox" id="opt-patch" checked> 注入代码包</label>
+        <label class="toggle"><input type="checkbox" id="opt-deploy" checked> 投放载荷</label>
+        <button id="btn-install" class="primary">开始安装</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>还原</h3>
+      <p class="muted">还原代码包会优先用 <code>backups/</code> 里的原始包；没有备份时删除缓存条目，
+      游戏下次启动自行重新下载。</p>
+      <div class="row">
+        <button id="btn-restore">仅还原代码包</button>
+        <button id="btn-uninstall" class="danger">完全卸载（含加载器目录）</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="console">
+  <div class="console-head">
+    <span>输出</span>
+    <span id="task-state" class="muted">空闲</span>
+    <div class="spacer"></div>
+    <button id="btn-clear">清空</button>
+  </div>
+  <pre id="console"></pre>
+</footer>
+
+<div id="modal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span id="modal-title">配置</span>
+      <button id="modal-close" class="icon">✕</button>
+    </div>
+    <textarea id="modal-text" spellcheck="false"></textarea>
+    <div class="modal-foot">
+      <span id="modal-status" class="muted"></span>
+      <button id="modal-save" class="primary">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

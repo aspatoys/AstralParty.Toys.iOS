@@ -68,7 +68,26 @@ uv run main.py
 
 装完在设备上**完全退出游戏再启动**即可。
 
-命令行：
+## 图形界面
+
+```bash
+uv run gui.py
+```
+
+| 页签 | 内容 |
+|---|---|
+| 总览 | 设备与游戏、catalog、代码包（哈希 / 大小 / 资产数）、补丁状态、加载器、上次启动的 ok/failed、引导日志尾部、注入标记 |
+| 模组 | 全部模组（启用状态、版本、作者、平台）；点开关启停，点「编辑」直接改该模组的 `config.json` |
+| 日志 | `<加载器根目录>/logs/` 的文件列表与内容 |
+| 操作 | 注入代码包 / 投放载荷 / 还原 / 完全卸载，底部是实时输出 |
+
+启停就是搬目录（`mods/` ↔ `disabled_mods/`），界面状态以目录为准，不看 sidecar 里的 `enabled`。
+配置按整段文本编辑并原样写回（不重新序列化，注释与写法都保留），保存前会校验能否解析回 JSON 对象。
+
+Windows 上界面用的是 **WebView2**（与 AstralParty.Toys 同一个引擎），需要系统装有 WebView2
+Runtime —— Windows 10/11 通常自带。
+
+## 命令行
 
 ```
 uv run main.py detect [--json]
@@ -144,7 +163,9 @@ uv run main.py uninstall    # 还原代码包 + 删除 CesiumLoader 目录与标
 
 ```
 CesiumLoader4iOS/
-├─ main.py                     主入口：交互式安装 / 检测
+├─ main.py                     命令行：交互式安装 / 检测
+├─ gui.py                      图形界面（pywebview）
+├─ webui/                      界面（index.html / app.js / style.css）
 ├─ tools/
 │  ├─ CesiumIosPatcher/        Mono.Cecil 注入器源码
 │  ├─ bundle_assets.py         UnityFS 读写（UnityPy）

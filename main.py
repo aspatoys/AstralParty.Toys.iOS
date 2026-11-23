@@ -71,24 +71,39 @@ CANDIDATE_IDS = (
 
 # --------------------------------------------------------------------------- 输出
 
+_OUTPUT_HOOK = None
+
+
+def set_output_hook(hook) -> None:
+    """把输出接给 GUI（传 None 恢复打印到 stdout）。"""
+    global _OUTPUT_HOOK
+    _OUTPUT_HOOK = hook
+
+
 def log(message: str = "") -> None:
+    if _OUTPUT_HOOK is not None:
+        try:
+            _OUTPUT_HOOK(str(message))
+            return
+        except Exception:
+            pass
     print(message, flush=True)
 
 
 def ok(message: str) -> None:
-    print(f"  [ok]   {message}", flush=True)
+    log(f"  [ok]   {message}")
 
 
 def warn(message: str) -> None:
-    print(f"  [warn] {message}", flush=True)
+    log(f"  [warn] {message}")
 
 
 def bad(message: str) -> None:
-    print(f"  [FAIL] {message}", flush=True)
+    log(f"  [FAIL] {message}")
 
 
 def section(title: str) -> None:
-    print(f"\n=== {title} ===", flush=True)
+    log(f"\n=== {title} ===")
 
 
 # --------------------------------------------------------------------------- 状态
@@ -215,6 +230,9 @@ class Device:
     async def rm(self, remote: str) -> None:
         await self.svc.rm(remote)
 
+    async def rename(self, src: str, dst: str) -> None:
+        await self.svc.rename(src, dst)
+
     async def stat(self, remote: str) -> dict:
         return await self.svc.stat(remote)
 
@@ -226,7 +244,10 @@ class Device:
         await self.svc.push(str(local), remote_dir)
 
     async def makedirs(self, remote: str) -> None:
-        await self.svc.makedirs(remote, exist_ok=True)
+        # AfcService.makedirs 只有 filename 一个参数，重复创建会报错，所以先判存在
+        if await self.svc.exists(remote):
+            return
+        await self.svc.makedirs(remote)
 
 
 class _Session:
@@ -445,6 +466,109 @@ async def deploy_payload(device: Device, payload: Path, root: str) -> int:
         await device.push(child, root)
         sent += 1
     return sent
+
+
+# --------------------------------------------------------------------------- 模组管理
+
+async def mod_inventory(device: Device, root: str) -> list[dict]:
+    """列出 mods/ 与 disabled_mods/ 里的模组。状态只看目录，不看 sidecar 的 enabled。"""
+    found: list[dict] = []
+    for folder, enabled in (("mods", True), ("disabled_mods", False)):
+        base = f"{root}/{folder}"
+        if not await device.exists(base):
+            continue
+        for name in await device.ls(base):
+            path = f"{base}/{name}"
+            try:
+                stat = await device.stat(path)
+            except Exception:
+                continue
+            if stat.get("st_ifmt") != "S_IFDIR":
+                continue
+            entry: dict = {"id": name, "enabled": enabled, "dir": folder, "sidecar": None,
+                           "has_config": False, "bytes": None}
+            sidecar = f"{path}/{name}.json"
+            if await device.exists(sidecar):
+                try:
+                    entry["sidecar"] = json.loads(
+                        (await device.read(sidecar)).decode("utf-8-sig", "replace"))
+                except Exception as error:  # noqa: BLE001
+                    entry["sidecar"] = {"id": name, "name": name, "_parse_error": str(error)}
+            entry["has_config"] = await device.exists(f"{path}/config.json")
+            found.append(entry)
+    return sorted(found, key=lambda m: m["id"].lower())
+
+
+async def set_mod_enabled(device: Device, root: str, mod_id: str, enabled: bool) -> dict:
+    """启停 = 在整个模组目录在两处之间搬移（搬完回读确认）。"""
+    src_folder, dst_folder = ("disabled_mods", "mods") if enabled else ("mods", "disabled_mods")
+    src = f"{root}/{src_folder}/{mod_id}"
+    dst = f"{root}/{dst_folder}/{mod_id}"
+    if not await device.exists(src):
+        raise RuntimeError(f"在 {src_folder}/ 里找不到模组 {mod_id}")
+    if await device.exists(dst):
+        raise RuntimeError(f"{dst_folder}/ 里已经存在同名模组 {mod_id}，请先手工处理")
+    await device.makedirs(f"{root}/{dst_folder}")
+    await device.rename(src, dst)
+    if not await device.exists(dst):
+        raise RuntimeError("搬移后回读不到目标目录")
+    return {"id": mod_id, "enabled": enabled, "dir": dst_folder}
+
+
+async def locate_mod_dir(device: Device, root: str, mod_id: str) -> str:
+    for folder in ("mods", "disabled_mods"):
+        path = f"{root}/{folder}/{mod_id}"
+        if await device.exists(path):
+            return path
+    raise RuntimeError(f"找不到模组目录 {mod_id}")
+
+
+async def read_mod_config(device: Device, root: str, mod_id: str) -> dict:
+    path = await locate_mod_dir(device, root, mod_id)
+    config = f"{path}/config.json"
+    if not await device.exists(config):
+        return {"id": mod_id, "path": config, "text": "", "exists": False}
+    return {"id": mod_id, "path": config, "exists": True,
+            "text": (await device.read(config)).decode("utf-8-sig", "replace")}
+
+
+async def write_mod_config(device: Device, root: str, mod_id: str, text: str) -> dict:
+    """整段文本写回，保存前必须能解析回 JSON 对象（保留注释与原有写法，不重新序列化）。"""
+    try:
+        parsed = json.loads(text)
+    except Exception as error:  # noqa: BLE001
+        raise RuntimeError(f"配置不是合法 JSON：{error}") from None
+    if not isinstance(parsed, dict):
+        raise RuntimeError("配置的顶层必须是 JSON 对象")
+    path = await locate_mod_dir(device, root, mod_id)
+    await device.write(f"{path}/config.json", text.encode("utf-8"))
+    readback = (await device.read(f"{path}/config.json")).decode("utf-8-sig", "replace")
+    if readback != text:
+        raise RuntimeError("回读内容与写入不一致")
+    return {"id": mod_id, "path": f"{path}/config.json", "bytes": len(text.encode("utf-8"))}
+
+
+async def list_logs(device: Device, root: str) -> list[dict]:
+    base = f"{root}/logs"
+    if not await device.exists(base):
+        return []
+    out: list[dict] = []
+    for name in await device.ls(base):
+        item = {"name": name, "bytes": None, "mtime": ""}
+        try:
+            stat = await device.stat(f"{base}/{name}")
+            item["bytes"] = stat.get("st_size")
+            item["mtime"] = str(stat.get("st_mtime") or "")
+        except Exception:
+            pass
+        out.append(item)
+    return sorted(out, key=lambda x: x["name"], reverse=True)
+
+
+async def read_log(device: Device, root: str, name: str) -> str:
+    if "/" in name or "\\" in name or name.startswith("."):
+        raise RuntimeError("非法日志名")
+    return (await device.read(f"{root}/logs/{name}")).decode("utf-8", "replace")
 
 
 # --------------------------------------------------------------------------- 检测
