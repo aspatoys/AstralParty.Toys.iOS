@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Badge, Button, Center, Group, Loader, Modal, ScrollArea, Skeleton, Stack, Switch,
+  Badge, Button, Center, Group, Loader, Modal, Skeleton, Stack, Switch,
   Table, Text, Textarea, TextInput, Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -284,40 +284,50 @@ function ConfigModal({ bridge, mod, onClose, onSaved }: ConfigProps) {
     <Modal
       opened
       onClose={onClose}
-      size="xl"
+      size="min(1240px, 96vw)"
       title={
         <Text ff="monospace" size="sm">
           {mod.id}/config.json
         </Text>
       }
-      styles={{ body: { paddingTop: 8 } }}
+      styles={{
+        content: { height: '94vh', display: 'flex', flexDirection: 'column' },
+        header: { flexShrink: 0 },
+        // 高度锁死 + 隐藏溢出：整窗只留 textarea 自己那一条滚动条
+        body: {
+          height: 'calc(94vh - 62px)',
+          overflow: 'hidden',
+          paddingTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+        },
+      }}
     >
       {loading ? (
-        <Stack gap="xs" h={360}>
-          <Center h="100%">
-            <Stack align="center" gap="xs">
-              <Loader />
-              <Text size="sm" c="dimmed">
-                正在读取配置…
-              </Text>
-            </Stack>
-          </Center>
-        </Stack>
+        <Center style={{ flex: 1 }}>
+          <Stack align="center" gap="xs">
+            <Loader />
+            <Text size="sm" c="dimmed">
+              正在读取配置…
+            </Text>
+          </Stack>
+        </Center>
       ) : (
-        <Stack gap="xs">
-          <ScrollArea h={380} type="auto">
-            <Textarea
-              value={text}
-              onChange={(event) => setText(event.currentTarget.value)}
-              autosize
-              minRows={18}
-              maxRows={24}
-              styles={{
-                input: { fontFamily: 'var(--mantine-font-family-monospace)', fontSize: 12.5 },
-              }}
-              spellCheck={false}
-            />
-          </ScrollArea>
+        <Stack gap="xs" style={{ flex: 1, minHeight: 0 }}>
+          <Textarea
+            value={text}
+            onChange={(event) => setText(event.currentTarget.value)}
+            styles={{
+              input: {
+                height: 'max(240px, calc(94vh - 168px))',
+                resize: 'none',
+                fontFamily: 'var(--mantine-font-family-monospace)',
+                fontSize: 12.5,
+                lineHeight: 1.6,
+              },
+            }}
+            spellCheck={false}
+          />
           <Group justify="space-between" wrap="nowrap">
             <Text size="xs" c={error ? 'red' : 'dimmed'} style={{ wordBreak: 'break-all' }}>
               {error ?? status ?? ''}
