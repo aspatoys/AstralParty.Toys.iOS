@@ -1,0 +1,15 @@
+# 设备与本地工作数据（含游戏资源，不入库）
+state.json
+backups/
+work/
+device/
+payload/
+catalog_*.json
+
+# Python
+__pycache__/
+*.pyc
+
+# 注入器构建输出
+tools/CesiumIosPatcher/bin/
+tools/CesiumIosPatcher/obj/
