@@ -26,9 +26,6 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.62.7
         version: 5.108.2(@types/react@18.3.31)(react@18.3.1)
-      liquid-glass-react:
-        specifier: 1.1.1
-        version: 1.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -644,12 +641,6 @@ packages:
     resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
     engines: {node: '>=6'}
     hasBin: true
-
-  liquid-glass-react@1.1.1:
-    resolution: {integrity: sha512-pKzaktaMAEztd93wpWcz2Z5Z9qdLJUNJdMX+n00Ca4XsnrLTQ5xJzm/+GQXZUeuFXe/PQ8ziVMZO6531PyaFJw==}
-    peerDependencies:
-      react: '>=19'
-      react-dom: '>=19'
 
   loose-envify@1.4.0:
     resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
@@ -1402,11 +1393,6 @@ snapshots:
   jsesc@3.1.0: {}
 
   json5@2.2.3: {}
-
-  liquid-glass-react@1.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
-    dependencies:
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
 
   loose-envify@1.4.0:
     dependencies:

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Alert, Badge, Box, Button, Center, Divider, Drawer, Group, Image, List, Loader,
+  Alert, Badge, Button, Card, Center, Divider, Drawer, Group, Image, List, Loader,
   Pagination, ScrollArea, Skeleton, Stack, Table, Text, Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -10,7 +10,6 @@ import {
 } from '@tabler/icons-react';
 import type { Bridge, MarketItem, MarketState, Task } from '../types';
 import { DISCLAIMER } from '../disclaimer';
-import { Glass } from '../ui/Glass';
 
 interface Props {
   bridge: Bridge;
@@ -129,9 +128,7 @@ export function Market({ bridge, task }: Props) {
 
   if (!state.accepted) {
     return (
-      <Center>
-        <Box maw={760} w="100%">
-          <Glass radius={20} padding="18px 20px">
+      <Card withBorder radius="md" maw={760} mx="auto" padding="lg">
         <Group gap="xs" mb="sm">
           <IconShieldCheck size={20} color="var(--mantine-color-berry-6)" />
           <Text fw={650}>【免责声明 / 风险提示】</Text>
@@ -151,10 +148,8 @@ export function Market({ bridge, task }: Props) {
           <Button onClick={() => void accept()} loading={consenting} leftSection={<IconShieldCheck size={16} />}>
             我已阅读并同意
           </Button>
-          </Group>
-          </Glass>
-        </Box>
-      </Center>
+        </Group>
+      </Card>
     );
   }
 

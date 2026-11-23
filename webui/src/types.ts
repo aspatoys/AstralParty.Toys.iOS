@@ -275,6 +275,4 @@ export interface Bridge {
   skins_activate(name: string): Promise<{ active?: string; enabled?: boolean; error?: string }>;
 
   settings(): Promise<SettingsResult>;
-
-  client_error?(message: string): Promise<unknown>;
 }
