@@ -333,6 +333,12 @@ class Api:
         except Exception as error:  # noqa: BLE001
             return {"name": name, "error": str(error)}
 
+    def client_error(self, message: str) -> dict:
+        """页面报上来的未捕获异常：进输出面板，冒烟时也会打到 stdout。"""
+        print(f"[ui] {message}", flush=True)
+        self._lines.append(f"[FAIL] 界面错误：{message}")
+        return {"ok": True}
+
     # ------------------------------------------------------------------ 市场
 
     def _market(self) -> dict:

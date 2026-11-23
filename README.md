@@ -90,7 +90,7 @@ uv run gui.py
 配置按整段文本编辑并原样写回（不重新序列化，注释与写法都保留），保存前会校验能否解析回 JSON 对象。
 市场列表与详情由宿主侧发起 HTTP（不走页面 `fetch`），因此不受跨域限制。
 
-界面用 React + TypeScript + Vite 写，组件库是 Mantine。`webui/dist/` 是预构建产物，
+界面用 React + TypeScript + Vite 写，组件库是 Mantine；配色与控件按 iOS 系统风格调过（系统蓝、圆角、发丝线、绿色开关、sheet 式弹窗），外壳材质用 liquid-glass-react（导航栏 / 关键卡片，滤镜不可用时自动回退成普通毛玻璃）。`webui/dist/` 是预构建产物，
 **不装 Node 也能直接跑**；改前端才需要进入 `webui/` 执行 `pnpm install && pnpm build`。
 
 Windows 上界面用的是 **WebView2**（与 AstralParty.Toys 同一个引擎），需要系统装有 WebView2

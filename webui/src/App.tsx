@@ -169,12 +169,9 @@ export default function App() {
   return (
     <Group h="100vh" gap={0} align="stretch" wrap="nowrap">
       <Box
-        w={212}
-        style={{
-          borderRight: '1px solid var(--mantine-color-default-border)',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
+        w={216}
+        className="ios-material ios-hairline-right"
+        style={{ display: 'flex', flexDirection: 'column' }}
       >
         <Stack gap={2} p="xs" style={{ flex: 1 }}>
           {PAGES.map((item) => (
