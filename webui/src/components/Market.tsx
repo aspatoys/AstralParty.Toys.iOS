@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Alert, Badge, Button, Card, Center, Divider, Drawer, Group, Image, List, Loader,
-  Pagination, ScrollArea, SimpleGrid, Skeleton, Stack, Text, Tooltip,
+  Pagination, ScrollArea, Skeleton, Stack, Table, Text, Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -16,19 +16,21 @@ interface Props {
   task: Task;
 }
 
-function Cover({ url, name }: { url?: string | null; name: string }) {
+function Cover({ url, name, height = 56 }: { url?: string | null; name: string; height?: number }) {
   const [broken, setBroken] = useState(false);
 
   if (!url || broken) {
     return (
       <Center
-        h={116}
+        h={height}
+        w={height}
         style={{
           background: 'var(--mantine-color-default-hover)',
           borderRadius: 'var(--mantine-radius-sm)',
+          flex: '0 0 auto',
         }}
       >
-        <Text size="xl" fw={700} c="dimmed">
+        <Text size="sm" fw={700} c="dimmed">
           {name.slice(0, 1).toUpperCase()}
         </Text>
       </Center>
@@ -37,7 +39,8 @@ function Cover({ url, name }: { url?: string | null; name: string }) {
   return (
     <Image
       src={url}
-      h={116}
+      h={height}
+      w={height}
       radius="sm"
       fit="cover"
       alt={name}
@@ -101,7 +104,7 @@ export function Market({ bridge, task }: Props) {
     }
   };
 
-  const install = async (item: MarketItem, version?: string) => {
+  const install = async (item: { id: string; name: string }, version?: string) => {
     const result = await bridge.market_install(item.id, version ?? null);
     if (!result.started) {
       notifications.show({ title: '没能启动安装', message: result.error ?? '', color: 'red' });
@@ -150,6 +153,8 @@ export function Market({ bridge, task }: Props) {
     );
   }
 
+  const items = list.data?.items ?? [];
+
   return (
     <Stack gap="md">
       <Group justify="space-between">
@@ -158,21 +163,21 @@ export function Market({ bridge, task }: Props) {
           <Badge variant="light" color="gray" ff="monospace">
             {state.baseUrl}
           </Badge>
+          {list.data?.total != null && (
+            <Text size="sm" c="dimmed">
+              {list.data.total} 个
+            </Text>
+          )}
         </Group>
-        <Group gap="xs">
-          <Text size="sm" c="dimmed">
-            {list.data?.total != null ? `${list.data.total} 个模组` : ''}
-          </Text>
-          <Button
-            size="compact-sm"
-            variant="default"
-            leftSection={<IconRefresh size={14} />}
-            onClick={() => void list.refetch()}
-            loading={list.isFetching}
-          >
-            刷新
-          </Button>
-        </Group>
+        <Button
+          size="compact-sm"
+          variant="default"
+          leftSection={<IconRefresh size={14} />}
+          onClick={() => void list.refetch()}
+          loading={list.isFetching}
+        >
+          刷新
+        </Button>
       </Group>
 
       {list.data?.ok === false && (
@@ -181,71 +186,115 @@ export function Market({ bridge, task }: Props) {
         </Alert>
       )}
 
-      {list.isLoading ? (
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
-          {Array.from({ length: 6 }).map((_, index) => (
-            <Card key={index} withBorder padding="md">
-              <Skeleton height={116} mb="sm" />
-              <Skeleton height={10} width="60%" mb={8} />
-              <Skeleton height={8} width="40%" />
-            </Card>
-          ))}
-        </SimpleGrid>
-      ) : (
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
-          {(list.data?.items ?? []).map((item) => (
-            <Card key={item.id} withBorder padding="md" radius="md">
-              <Cover url={item.coverUrl} name={item.name} />
-              <Group justify="space-between" mt="sm" wrap="nowrap">
-                <Text fw={600} size="sm" truncate>
-                  {item.name}
-                </Text>
-                {item.featured && (
-                  <Badge size="xs" color="berry" variant="light">
-                    推荐
-                  </Badge>
-                )}
-              </Group>
-              <Text size="xs" c="dimmed" ff="monospace" truncate>
-                {item.id}
-              </Text>
-              <Text size="xs" c="dimmed" lineClamp={2} mt={4} mih={32}>
-                {item.summary || '（无简介）'}
-              </Text>
-              <Group gap={4} mt="xs" wrap="wrap">
-                {item.tags.slice(0, 3).map((tag) => (
-                  <Badge key={tag} size="xs" variant="default">
-                    {tag}
-                  </Badge>
-                ))}
-                {item.platforms.map((platform) => (
-                  <Badge key={platform} size="xs" variant="light" color="gray">
-                    {platform}
-                  </Badge>
-                ))}
-              </Group>
-              <Group justify="space-between" mt="sm">
-                <Text size="xs" c="dimmed">
-                  v{item.latestVersion || '?'} · {formatBytes(item.sizeBytes)} · ↓{item.downloads}
-                </Text>
-                <Group gap={4}>
-                  <Button size="compact-xs" variant="default" onClick={() => setDetailId(item.id)}>
-                    详情
-                  </Button>
-                  <Button
-                    size="compact-xs"
-                    leftSection={<IconDownload size={13} />}
-                    onClick={() => void install(item)}
-                    disabled={task.running}
-                  >
-                    安装
-                  </Button>
-                </Group>
-              </Group>
-            </Card>
-          ))}
-        </SimpleGrid>
-      )}
+      <Table.ScrollContainer minWidth={900}>
+        <Table highlightOnHover verticalSpacing="sm" horizontalSpacing="md">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th w={72}>封面</Table.Th>
+              <Table.Th>模组</Table.Th>
+              <Table.Th w={200}>标签</Table.Th>
+              <Table.Th w={150}>版本 / 大小</Table.Th>
+              <Table.Th w={148}>操作</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {list.isLoading &&
+              Array.from({ length: 8 }).map((_, index) => (
+                <Table.Tr key={index}>
+                  <Table.Td><Skeleton height={56} width={56} radius="sm" /></Table.Td>
+                  <Table.Td>
+                    <Skeleton height={10} width="45%" mb={8} />
+                    <Skeleton height={8} width="70%" />
+                  </Table.Td>
+                  <Table.Td><Skeleton height={16} width={110} radius="sm" /></Table.Td>
+                  <Table.Td><Skeleton height={8} width={90} /></Table.Td>
+                  <Table.Td><Skeleton height={22} width={100} radius="sm" /></Table.Td>
+                </Table.Tr>
+              ))}
+
+            {!list.isLoading && items.length === 0 && (
+              <Table.Tr>
+                <Table.Td colSpan={5}>
+                  <Center mih={120}>
+                    <Text size="sm" c="dimmed">
+                      市场里还没有内容
+                    </Text>
+                  </Center>
+                </Table.Td>
+              </Table.Tr>
+            )}
+
+            {!list.isLoading &&
+              items.map((item: MarketItem) => (
+                <Table.Tr key={item.id}>
+                  <Table.Td>
+                    <Cover url={item.coverUrl} name={item.name} />
+                  </Table.Td>
+                  <Table.Td>
+                    <Group gap={6} wrap="nowrap">
+                      <Text size="sm" fw={600}>
+                        {item.name}
+                      </Text>
+                      {item.featured && (
+                        <Badge size="xs" color="berry" variant="light">
+                          推荐
+                        </Badge>
+                      )}
+                    </Group>
+                    <Text size="xs" c="dimmed" ff="monospace">
+                      {item.id}
+                    </Text>
+                    <Text size="xs" c="dimmed" lineClamp={1} mt={2}>
+                      {item.summary || '（无简介）'}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Group gap={4} wrap="wrap">
+                      {item.tags.slice(0, 3).map((tag) => (
+                        <Badge key={tag} size="xs" variant="default">
+                          {tag}
+                        </Badge>
+                      ))}
+                      {item.platforms.map((platform) => (
+                        <Badge key={platform} size="xs" variant="light" color="gray">
+                          {platform}
+                        </Badge>
+                      ))}
+                    </Group>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="xs">v{item.latestVersion || '?'}</Text>
+                    <Text size="xs" c="dimmed">
+                      {formatBytes(item.sizeBytes)}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      ↓{item.downloads}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Group gap={4} wrap="nowrap">
+                      <Button
+                        size="compact-xs"
+                        variant="default"
+                        onClick={() => setDetailId(item.id)}
+                      >
+                        详情
+                      </Button>
+                      <Button
+                        size="compact-xs"
+                        leftSection={<IconDownload size={13} />}
+                        onClick={() => void install(item)}
+                        disabled={task.running}
+                      >
+                        安装
+                      </Button>
+                    </Group>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+          </Table.Tbody>
+        </Table>
+      </Table.ScrollContainer>
 
       {pageCount > 1 && (
         <Center>
@@ -311,10 +360,7 @@ export function Market({ bridge, task }: Props) {
                       onClick={() =>
                         detail.data?.detail &&
                         void install(
-                          {
-                            ...(detail.data.detail as unknown as MarketItem),
-                            latestVersion: version.version,
-                          },
+                          { id: detail.data.detail.id, name: detail.data.detail.name },
                           version.version,
                         )
                       }
