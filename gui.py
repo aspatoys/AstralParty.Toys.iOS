@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import collections
+import json
 import sys
 import threading
 import time
@@ -37,6 +38,12 @@ import main as engine
 HERE = Path(__file__).resolve().parent
 WEBUI = HERE / "webui"
 LOADER_ROOT = f"/Documents/{engine.LOADER_DIR}"
+
+
+def _jsonable(value):
+    """pywebview 用 json.dumps 把返回值发给页面；遇到 datetime 之类会整条调用失败。
+    这里兜一层，避免将来某个字段又把接口打挂。"""
+    return json.loads(json.dumps(value, default=str))
 
 
 class LoopRunner:
@@ -144,10 +151,10 @@ class Api:
         return self._spawn("检测", self._snapshot(), after=after)
 
     def get_report(self):
-        return self._report
+        return _jsonable(self._report) if self._report is not None else None
 
     def get_mods(self) -> list[dict]:
-        return self._mods
+        return _jsonable(self._mods)
 
     # ------------------------------------------------------------------ 模组
 

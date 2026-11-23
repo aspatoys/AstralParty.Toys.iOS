@@ -293,9 +293,15 @@ def check_dependencies() -> None:
 
 
 def run_pmd(*args: str) -> tuple[int, str, str]:
-    """调用 pymobiledevice3 CLI（只用于设备与应用列表这类一次性查询）。"""
+    """调用 pymobiledevice3 CLI（只用于设备与应用列表这类一次性查询）。
+
+    子进程强制 UTF-8 输出：Windows 上默认按控制台代码页写，按 UTF-8 解会把中文设备名
+    解成乱码。
+    """
+    env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
     result = subprocess.run([sys.executable, "-m", "pymobiledevice3", *args],
-                            capture_output=True, text=True, encoding="utf-8", errors="replace")
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", env=env)
     return result.returncode, result.stdout or "", result.stderr or ""
 
 
@@ -600,7 +606,8 @@ async def collect(device: Device, version: str, state: dict) -> dict:
 
     stat = await device.stat(f"{bundle_dir}/__data")
     report["bundle_bytes"] = stat.get("st_size")
-    report["bundle_mtime"] = stat.get("st_mtime")
+    # stat 的 st_mtime 是 datetime，直接返回会让 GUI 的 JSON 序列化炸掉
+    report["bundle_mtime"] = str(stat.get("st_mtime") or "")
 
     # 每次都重新取回来算 SHA-256。AFC 自带的 get_file_hash 是 SHA-1，不能拿来和本地
     # 算的 SHA-256 比；而且游戏可能已经换过这个文件，不能复用本地旧副本。
