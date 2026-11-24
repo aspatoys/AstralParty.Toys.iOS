@@ -3,6 +3,9 @@
 export interface LoaderInfo {
   present: boolean;
   root: string;
+  /** 本机载荷目录（设备上那份东西的来源）。 */
+  payload?: string;
+  payload_present?: boolean;
   has_bootstrap?: boolean;
   has_api?: boolean;
   mods?: string[];

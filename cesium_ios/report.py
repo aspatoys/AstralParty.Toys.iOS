@@ -8,7 +8,9 @@ from .catalog import Catalog, locate_bundle_dir, pick_catalog
 from .common import sha256_bytes, sha256_file
 from .device import Device
 from .patcher import extract_assets
-from .paths import ASSET_NAME, BOOT_DLL, LOADER_DIR, PATCH_MARKER, PATCH_MARKER_UTF16, WORK_DIR
+from .payload import resolve_payload
+from .paths import (ASSET_NAME, BOOT_DLL, LOADER_DIR, PATCH_MARKER, PATCH_MARKER_UTF16, ROOT,
+                    WORK_DIR)
 
 async def collect(device: Device, version: str, state: dict) -> dict:
     report: dict = {"bundle_id": device.bundle_id, "app_version": version, "issues": []}
@@ -71,10 +73,20 @@ async def collect(device: Device, version: str, state: dict) -> dict:
 
     # 加载器
     root = f"/Documents/{LOADER_DIR}"
-    loader: dict = {"root": root}
+    local_payload = resolve_payload(None)
+    payload_dir = ROOT / "payload" / LOADER_DIR
+    loader: dict = {"root": root, "payload": str(local_payload or payload_dir),
+                    "payload_present": local_payload is not None}
     if not await device.exists(root):
         loader["present"] = False
-        report["issues"].append("容器里没有 CesiumLoader 目录")
+        if local_payload is None:
+            report["issues"].append(
+                f"容器里没有 CesiumLoader 目录，本机也没有载荷目录 {payload_dir} —— "
+                "到「设置」→「维护」点「拉取最新 CesiumLoader」"
+                "（或自己把载荷放进该目录），再点右上角「一键安装」")
+        else:
+            report["issues"].append(
+                f"容器里没有 CesiumLoader 目录 —— 点右上角「一键安装」把 {local_payload} 投放上去")
     else:
         loader["present"] = True
         entries = await device.ls(root)

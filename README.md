@@ -36,6 +36,8 @@ Python 依赖（`pymobiledevice3`、`UnityPy`、`pywebview`）声明在 `pyproje
 
 ## 快速开始
 
+### 1. 启动界面
+
 Windows 上双击 `start.cmd`，或者在 PowerShell 里跑 ` ./start.ps1 ` —— 它会按 `pyproject.toml` 装好
 Python 依赖、构建一次前端，然后打开界面：
 
@@ -50,14 +52,23 @@ macOS / Linux：
 uv run gui.py
 ```
 
-然后在界面里走三步：
+### 2. 准备载荷
+
+界面只负责把载荷推上设备，**载荷本身不在这个仓库里**（`payload/` 是加载器那边的构建产物）。
+在「设置」→「维护」里点 **拉取最新 CesiumLoader**：工具从 CesiumLoader 官方 Release 取 SDK 与
+全部模组，再从安卓发行包的 APK 资产里取引导 DLL，写进 `payload/CesiumLoader/`。
+下载缓存在 `work/release/`；载荷里已有的配置（模组 `config.json`）和额外文件不会被覆盖。
+
+也可以不用它，自己把加载器发行包解开到 `payload/CesiumLoader/`，内容就是「载荷布局」那一节列的。
+
+没有载荷时界面会提示「容器里没有 CesiumLoader 目录」，点「一键安装」也会因为找不到载荷而失败
+（底部输出里是「载荷目录不存在」）。已经有载荷时也可以在「设置」页指到别的目录。
+
+### 3. 点「一键安装」
 
 1. 用 USB 连上设备，并在设备上点「信任此电脑」；
 2. 点右上角 **一键安装**：注入代码包 + 投放载荷一起做，进度和结果看底部输出；
 3. 在设备上**完全退出游戏再启动**。
-
-首次使用前把加载器发行包解开到 `payload/CesiumLoader/`（里面该有什么见「载荷布局」）。
-「设置」页能看到当前用的载荷目录，要换目录在那里改。
 
 命令行入口仍然保留（`uv run main.py`，交互式菜单），见「命令行」。
 
@@ -139,9 +150,14 @@ uv run main.py
 ```
 uv run main.py detect [--json]
 uv run main.py install [--payload <目录>] [--skip-payload] [--skip-patch]
+uv run main.py pull [--payload <目录>] [--no-android] [--force-android]
 uv run main.py restore [--keep-loader]
 uv run main.py uninstall
 ```
+
+`pull` 和界面里的「拉取最新 CesiumLoader」是同一套逻辑：从官方 Release 取 SDK 与全部模组，再从
+安卓发行的 APK 里取引导 DLL；`--no-android` 只更新 SDK 与模组，`--force-android` 连引导 DLL 一起更新。
+想走 GitHub 镜像时设 `CESIUM_GH_MIRROR=<前缀>`（拼在原地址前面）。
 
 不想用 uv，就给同一个解释器装依赖再直接跑：
 
@@ -174,9 +190,9 @@ python main.py
 
 ```
 CesiumLoader/
-├─ CesiumLoader.Android.Bootstrap.dll   引导程序集（与安卓端同一份）
-├─ CesiumAndroidApi.dll                 悬浮窗 API（可选）
-├─ sdk/CesiumLoader.SDK.dll             模组 SDK
+├─ CesiumLoader.Android.Bootstrap.dll   引导程序集（与安卓端同一份，来自安卓发行包的 APK）
+├─ CesiumAndroidApi.dll                 悬浮窗 API（可选，同上）
+├─ sdk/CesiumLoader.SDK.dll             模组 SDK（来自 CesiumLoader 官方 Release）
 └─ mods/<ModId>/
    ├─ <ModId>.dll
    ├─ <ModId>.json                      sidecar（id/版本/权限/平台）
@@ -231,6 +247,7 @@ AstralParty.Toys.iOS/
 │  ├─ files.py                  文件管理（浏览、复制粘贴、上传下载、双击打开）
 │  ├─ skins.py                  卡面方案
 │  ├─ report.py                 检测报告汇总
+│  ├─ release.py                拉取官方发行包（SDK / 模组 / 安卓引导 DLL）
 │  ├─ install.py                安装 / 还原流程（CLI 与 GUI 共用）
 │  └─ cli.py                    argparse、交互式菜单
 ├─ host/                        图形界面宿主（pywebview）
@@ -271,6 +288,7 @@ uv run --group dev pyflakes cesium_ios host main.py gui.py
 
 | 现象 | 先看 |
 |---|---|
+| 报「容器里没有 CesiumLoader 目录」 | 载荷还没上去。到「设置」→「维护」点一下「拉取最新 CesiumLoader」（或自己把载荷放进 `payload/CesiumLoader/`），再点右上角「一键安装」 |
 | `[FAIL] 缺少 Python 依赖` | 用 `uv run` 跑（会按 `pyproject.toml` 自动建 `.venv` 装依赖）；或给跑脚本的那个解释器装上 |
 | `detect` 报「缓存里找不到当前代码包」 | 游戏还没把热更下完，启动一次等下载结束 |
 | 补丁状态「未知（与本工具记录不符）」 | 游戏刚热更过，重跑一次安装 |

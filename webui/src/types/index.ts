@@ -59,4 +59,10 @@ export interface Bridge {
 
   settings(): Promise<SettingsResult>;
   open_logs(): Promise<{ ok?: boolean; path: string; error?: string }>;
+  /** 从官方 Release 拉取最新加载器载荷（SDK + 模组 + 安卓引导 DLL）。 */
+  pull_loader(
+    withAndroid?: boolean,
+    forceAndroid?: boolean,
+    target?: string | null,
+  ): Promise<StartResult>;
 }

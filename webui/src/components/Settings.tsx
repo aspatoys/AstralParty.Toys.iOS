@@ -5,8 +5,8 @@ import {
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import {
-  IconAlertTriangle, IconArrowBackUp, IconDownload, IconFolderOpen, IconShieldCheck,
-  IconTrash,
+  IconAlertTriangle, IconArrowBackUp, IconCloudDownload, IconDownload, IconFolderOpen,
+  IconShieldCheck, IconTrash,
 } from '@tabler/icons-react';
 import type { Bridge, MarketState, SettingsResult, Task } from '../types';
 import { DISCLAIMER } from '../disclaimer';
@@ -114,7 +114,17 @@ export function Settings({ bridge, task, settings, onChanged }: Props) {
       },
     });
 
+  const pullLoader = async () => {
+    const result = await bridge.pull_loader(true, false, payload.trim() || null);
+    if (!result.started) {
+      notifications.show({ title: '没能启动拉取', message: result.error ?? '', color: 'red' });
+      return;
+    }
+    notifications.show({ message: '正在拉取最新 CesiumLoader，进度见底部输出', color: 'blue', autoClose: 2400 });
+  };
+
   const installing = task.running && task.name === '安装';
+  const pulling = task.running && task.name === '拉取最新 CesiumLoader';
 
   return (
     <Stack gap="md" maw={880}>
@@ -181,6 +191,21 @@ export function Settings({ bridge, task, settings, onChanged }: Props) {
           <Button variant="default" onClick={() => void pickPayload()} loading={picking}>
             选择…
           </Button>
+        </Group>
+
+        <Group mt="xs" gap="sm" wrap="nowrap" align="center">
+          <Button
+            variant="light"
+            leftSection={<IconCloudDownload size={16} />}
+            loading={pulling}
+            onClick={() => void pullLoader()}
+          >
+            拉取最新 CesiumLoader
+          </Button>
+          <Text size="xs" c="dimmed">
+            从官方 Release 取 SDK 与全部模组，引导 DLL 从安卓包取；下载缓存在 work/release/，
+            不会覆盖载荷里已有的配置与额外文件
+          </Text>
         </Group>
 
         <Group mt="md" gap="lg">

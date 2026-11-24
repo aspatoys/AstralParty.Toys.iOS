@@ -232,6 +232,7 @@ export function createMockBridge(): Bridge {
     skins_import: () => delay(run('导入卡面')),
     skins_activate: (name: string) => delay({ active: name, enabled: true }),
     open_logs: () => delay({ ok: true, path: 'C:\\src\\Study\\astralparty\\iOS\\logs' }, 60),
+    pull_loader: () => delay(run('拉取最新 CesiumLoader')),
     settings: () =>
       delay({
         appVersion: '0.3.0',

@@ -11,7 +11,7 @@ from .common import load_state, save_state, sha256_file
 from .device import app_version, close_device, find_game, open_device
 from .output import bad, log, ok, section
 from .patcher import ensure_patcher, extract_assets, replace_asset, run_patcher
-from .paths import ASSET_NAME, BACKUP_DIR, LOADER_DIR, WORK_DIR
+from .paths import ASSET_NAME, BACKUP_DIR, LOADER_DIR, ROOT, WORK_DIR
 from .payload import deploy_payload
 
 async def do_install(payload: Path | None, skip_payload: bool, skip_patch: bool) -> int:
@@ -85,7 +85,10 @@ async def do_install(payload: Path | None, skip_payload: bool, skip_patch: bool)
         if not skip_payload:
             section("载荷")
             if payload is None or not payload.is_dir():
-                bad(f"载荷目录不存在：{payload}")
+                bad("载荷目录不存在："
+                    + (str(payload) if payload else
+                       f"{ROOT / 'payload' / LOADER_DIR}"
+                       "（把加载器发行包解开到这里，见 README「载荷布局」）"))
                 return 1
             result = await deploy_payload(device, payload, f"/Documents/{LOADER_DIR}")
             ok(f"已投放 {result['sent']} 项 -> /Documents/{LOADER_DIR}"

@@ -17,6 +17,7 @@ from .logs import *  # noqa: F401,F403
 from .files import *  # noqa: F401,F403
 from .skins import *  # noqa: F401,F403
 from .report import *  # noqa: F401,F403
+from .release import *  # noqa: F401,F403
 from .install import *  # noqa: F401,F403
 from .cli import *  # noqa: F401,F403
 

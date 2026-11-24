@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import asyncio
+
 import cesium_ios as engine
 import webview
 
@@ -32,6 +34,26 @@ class InstallApi:
             return {"ok": True, "path": str(folder)}
         except Exception as error:  # noqa: BLE001
             return {"path": str(folder), "error": str(error)}
+
+
+    def pull_loader(self, with_android: bool = True, force_android: bool = False,
+                    target: str | None = None) -> dict:
+        """拉取最新 CesiumLoader 载荷（下载是阻塞的，丢到线程里做，别占事件循环）。"""
+
+        async def work():
+            folder = Path(target).expanduser() if target else None
+            return await asyncio.to_thread(
+                engine.pull_latest, folder, bool(with_android), bool(force_android), engine.log)
+
+        def after(result) -> None:
+            if not isinstance(result, dict):
+                return
+            engine.ok(f"载荷已更新到 {result.get('version')}："
+                      f"{len(result.get('mods') or [])} 个模组 -> {result.get('payload')}")
+            if result.get("missing"):
+                engine.warn("载荷还缺：" + ", ".join(result["missing"]))
+
+        return self._spawn("拉取最新 CesiumLoader", work(), after=after)
 
 
     def default_payload(self) -> str:

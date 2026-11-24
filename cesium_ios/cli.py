@@ -13,6 +13,7 @@ from .install import do_install, do_restore
 from .output import bad, log, section, set_log_prefix, warn
 from .paths import LOADER_DIR, ROOT
 from .payload import resolve_payload
+from .release import pull_latest
 from .report import collect
 
 MENU = """
@@ -163,6 +164,11 @@ def main() -> int:
     p = sub.add_parser("restore", help="还原代码包")
     p.add_argument("--keep-loader", action="store_true", help="保留加载器目录")
 
+    p = sub.add_parser("pull", help="从官方 Release 拉取最新加载器载荷（SDK + 模组 + 安卓引导）")
+    p.add_argument("--payload", help=f"载荷目录（默认 {ROOT / 'payload' / LOADER_DIR}）")
+    p.add_argument("--no-android", action="store_true", help="只拉 SDK 与模组，不碰安卓引导 DLL")
+    p.add_argument("--force-android", action="store_true", help="已有引导 DLL 也从安卓包重新取")
+
     sub.add_parser("uninstall", help="还原代码包并删除加载器目录")
 
     args = parser.parse_args()
@@ -176,6 +182,17 @@ def main() -> int:
                                           args.skip_payload, args.skip_patch))
         if args.command == "restore":
             return asyncio.run(do_restore(not args.keep_loader))
+        if args.command == "pull":
+            target = Path(args.payload).expanduser().resolve() if args.payload else None
+            summary = pull_latest(target, with_android=not args.no_android,
+                                  force_android=args.force_android, progress=log)
+            log("")
+            log(f"  载荷目录 : {summary['payload']}")
+            log(f"  版本     : {summary['version']}（{summary.get('releaseTag') or ''}）")
+            log(f"  模组     : {len(summary['mods'])} 个")
+            log(f"  引导 DLL : {summary['android']['bootstrap']}")
+            log(f"  悬浮窗API: {summary['android']['android_api']}")
+            return 2 if summary["missing"] else 0
         if args.command == "uninstall":
             return asyncio.run(do_restore(True))
         return interactive()
