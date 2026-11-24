@@ -58,9 +58,10 @@ uv run gui.py
 所以按第 3 步直接装就行，这一步可以跳过。
 
 要更新到最新一套时，在「设置」→「维护」里点 **拉取最新 CesiumLoader**：工具从 CesiumLoader
-官方 Release 取 SDK 与全部模组，再从安卓发行包的 APK 资产里取引导 DLL，写进
-`payload/CesiumLoader/`。下载缓存在 `work/release/`；载荷里已有的模组 `config.json`
-和额外文件不会被覆盖，发行包里跑不了 iOS 的 SDK 也不会写进来。
+官方 Release 取 SDK 与全部模组，再从安卓发行版的托管载荷（`cesium-loader-android-managed-<版本>.zip`，
+老发行版没有这个资产时才回落到 APK）里取引导 DLL，写进 `payload/CesiumLoader/`。下载缓存在
+`work/release/`；载荷里已有的模组 `config.json` 和额外文件不会被覆盖，发行包里跑不了 iOS 的 SDK
+也不会写进来。
 
 也可以自己把加载器发行包解开到 `payload/CesiumLoader/`，内容就是「载荷布局」那一节列的。
 
@@ -193,7 +194,7 @@ python main.py
 
 ```
 CesiumLoader/
-├─ CesiumLoader.Android.Bootstrap.dll   引导程序集（与安卓端同一份，来自安卓发行包的 APK）
+├─ CesiumLoader.Android.Bootstrap.dll   引导程序集（与安卓端同一份，来自安卓发行版的托管载荷）
 ├─ CesiumAndroidApi.dll                 悬浮窗 API（可选，同上）
 ├─ sdk/CesiumLoader.SDK.dll             模组 SDK（来自 CesiumLoader 官方 Release）
 └─ mods/<ModId>/

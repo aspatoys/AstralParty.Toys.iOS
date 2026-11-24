@@ -40,6 +40,8 @@ MANAGED_PREFIX = "AstralParty_ModLoader/"
 
 BOOTSTRAP_DLL = "CesiumLoader.Android.Bootstrap.dll"
 ANDROID_API_DLL = "CesiumAndroidApi.dll"
+# 新版安卓发行版的托管载荷 zip 里：bootstrap/ 与根目录；老版本只能从 APK 的 assets/cesium/ 里取
+MANAGED_BOOTSTRAP = "bootstrap/" + BOOTSTRAP_DLL
 APK_BOOTSTRAP = "assets/cesium/bootstrap/" + BOOTSTRAP_DLL
 APK_API = "assets/cesium/" + ANDROID_API_DLL
 
@@ -191,8 +193,12 @@ def extract_loader(zip_path: Path, target_root: Path, progress=None) -> dict:
 
 
 def ensure_android_assets(target_root: Path, force: bool = False, progress=None) -> dict:
-    """从安卓发行包的 APK 里取引导 DLL / 悬浮窗 API（载荷里已经有就不动）。"""
-    result = {"bootstrap": "kept", "android_api": "kept", "apk": None}
+    """取引导 DLL / 悬浮窗 API（载荷里已经有就不动）。
+
+    新版的安卓发行版会额外挂一个 `cesium-loader-android-managed-<ver>.zip`（引导 DLL + SDK +
+    悬浮窗 API），优先用它；老发行版没有这个资产时才退回从 APK 里抠（37 MB，慢）。
+    """
+    result = {"bootstrap": "kept", "android_api": "kept", "source": None}
     need_bootstrap = force or not (target_root / BOOTSTRAP_DLL).is_file()
     need_api = not (target_root / ANDROID_API_DLL).is_file()
     if not need_bootstrap and not need_api:
@@ -201,18 +207,34 @@ def ensure_android_assets(target_root: Path, force: bool = False, progress=None)
         return result
 
     manifest = latest_manifest(ANDROID_REPO)
-    apk = download(_package(manifest, "androidApk"), progress, label="安卓 App（只为取引导 DLL）")
     version = manifest.get("version") or manifest.get("releaseTag") or "?"
-    result["apk"] = f"{apk.name}（App {version}）"
-    with zipfile.ZipFile(apk) as archive:
-        if need_bootstrap:
-            _extract_entry(archive, APK_BOOTSTRAP, target_root / BOOTSTRAP_DLL)
-            result["bootstrap"] = "updated"
-        if need_api and APK_API in archive.namelist():
-            _extract_entry(archive, APK_API, target_root / ANDROID_API_DLL)
-            result["android_api"] = "updated"
+    packages = manifest.get("packages") or {}
+
+    if "loaderManaged" in packages:
+        bundle = download(_package(manifest, "loaderManaged"), progress,
+                          label="安卓托管载荷（引导 DLL / SDK）")
+        with zipfile.ZipFile(bundle) as archive:
+            names = set(archive.namelist())
+            if need_bootstrap and MANAGED_BOOTSTRAP in names:
+                _extract_entry(archive, MANAGED_BOOTSTRAP, target_root / BOOTSTRAP_DLL)
+                result["bootstrap"] = "updated"
+            if need_api and ANDROID_API_DLL in names:
+                _extract_entry(archive, ANDROID_API_DLL, target_root / ANDROID_API_DLL)
+                result["android_api"] = "updated"
+        result["source"] = f"{bundle.name}（App {version}，不用解 APK）"
+    else:
+        apk = download(_package(manifest, "androidApk"), progress, label="安卓 App（只为取引导 DLL）")
+        with zipfile.ZipFile(apk) as archive:
+            if need_bootstrap:
+                _extract_entry(archive, APK_BOOTSTRAP, target_root / BOOTSTRAP_DLL)
+                result["bootstrap"] = "updated"
+            if need_api and APK_API in archive.namelist():
+                _extract_entry(archive, APK_API, target_root / ANDROID_API_DLL)
+                result["android_api"] = "updated"
+        result["source"] = f"{apk.name}（App {version}）"
     if progress:
-        progress(f"  引导 DLL {result['bootstrap']}，悬浮窗 API {result['android_api']}（来自 {apk.name}）")
+        progress(f"  引导 DLL {result['bootstrap']}，悬浮窗 API {result['android_api']}"
+                 f"（来自 {result['source']}）")
     return result
 
 
