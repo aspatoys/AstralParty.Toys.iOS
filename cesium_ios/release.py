@@ -23,6 +23,7 @@ from pathlib import Path
 
 from .output import log, warn
 from .paths import LOADER_DIR, ROOT, WORK_DIR
+from .payload import SDK_RELATIVE, sdk_bytes_ios_capable
 
 LOADER_REPO = "higashitaniyume/CesiumLoader"
 ANDROID_REPO = "higashitaniyume/AstralParty.Toys.Android"
@@ -36,7 +37,6 @@ SKIP_SUFFIXES = {".pdb", ".xml", ".txt", ".md"}
 SKIP_NAMES = {"config.json", "mod.cfg"}
 # 发行包里的托管部分都在这个前缀下，其中只有下面这两类要上设备
 MANAGED_PREFIX = "AstralParty_ModLoader/"
-SDK_RELATIVE = "sdk/CesiumLoader.SDK.dll"
 
 BOOTSTRAP_DLL = "CesiumLoader.Android.Bootstrap.dll"
 ANDROID_API_DLL = "CesiumAndroidApi.dll"
@@ -146,10 +146,15 @@ def _wanted(relative: str) -> bool:
 
 
 def extract_loader(zip_path: Path, target_root: Path, progress=None) -> dict:
-    """把发行包里的 sdk/ 与 mods/ 合并进载荷目录（不删已有文件）。"""
+    """把发行包里的 sdk/ 与 mods/ 合并进载荷目录（不删已有文件）。
+
+    SDK 会额外挑一下：发行包可能还是只会走 Win32 的旧构建，装到 iOS 上会让
+    热键模组每帧抛 user32.dll 异常、把游戏卡死，所以这种 SDK 不写进载荷（保留原有的）。
+    """
     written: list[str] = []
     skipped = 0
     mods: set[str] = set()
+    sdk_status = "absent"
     with zipfile.ZipFile(zip_path) as archive:
         names = [n for n in archive.namelist() if not n.endswith("/")]
         if len(names) > 20000:
@@ -163,15 +168,26 @@ def extract_loader(zip_path: Path, target_root: Path, progress=None) -> dict:
                 continue
             target = target_root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
-            with archive.open(name) as source, open(target, "wb") as sink:
-                shutil.copyfileobj(source, sink)
+            if relative == SDK_RELATIVE:
+                data = archive.read(name)
+                if not sdk_bytes_ios_capable(data):
+                    sdk_status = "native-only"
+                    skipped += 1
+                    continue
+                target.write_bytes(data)
+                sdk_status = "written"
+            else:
+                with archive.open(name) as source, open(target, "wb") as sink:
+                    shutil.copyfileobj(source, sink)
             written.append(relative)
             parts = relative.split("/")
             if len(parts) >= 2 and parts[0] == "mods":
                 mods.add(parts[1])
     if progress:
         progress(f"  写入 {len(written)} 个文件、{len(mods)} 个模组（跳过 {skipped} 个非运行时文件）")
-    return {"files": written, "mods": sorted(mods), "skipped": skipped}
+        if sdk_status == "native-only":
+            progress("  发行包里的 SDK 没有「退回 Unity 后端」的兜底，没有写进载荷")
+    return {"files": written, "mods": sorted(mods), "skipped": skipped, "sdk": sdk_status}
 
 
 def ensure_android_assets(target_root: Path, force: bool = False, progress=None) -> dict:
@@ -229,8 +245,12 @@ def pull_latest(target_root: Path | None = None, with_android: bool = True,
                           if with_android else {"bootstrap": "skipped", "android_api": "skipped", "apk": None})
 
     missing = [name for name in (BOOTSTRAP_DLL,) if not (root / name).is_file()]
+    if not (root / SDK_RELATIVE).is_file():
+        missing.append(f"{SDK_RELATIVE}（要在没有 user32 的平台上也能跑的构建）")
     summary["missing"] = missing
+    if summary.get("sdk") == "native-only" and (root / SDK_RELATIVE).is_file():
+        warn("发行包里的 SDK 只走 Win32 后端，已保留载荷里原有的 SDK；"
+             "要更新 SDK 请等加载器发布带 Unity 兜底的版本")
     if missing:
-        warn(f"载荷里还缺 {', '.join(missing)} —— 从安卓 App 的 APK 资产取一份放进去"
-             "（联网时工具会自己取：不要加 --no-android）")
+        warn(f"载荷里还缺 {', '.join(missing)} —— 补齐后再点「一键安装」")
     return summary

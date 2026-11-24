@@ -1,6 +1,6 @@
 [project]
 name = "astralparty-toys-ios"
-version = "0.3.0"
+version = "0.4.0"
 description = "在 iOS 上为《吉星派对 / Astral Party》加载 CesiumLoader 模组：命令行工具与图形界面"
 readme = "README.md"
 requires-python = ">=3.10"

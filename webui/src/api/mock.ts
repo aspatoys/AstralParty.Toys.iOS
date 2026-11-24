@@ -235,7 +235,7 @@ export function createMockBridge(): Bridge {
     pull_loader: () => delay(run('拉取最新 CesiumLoader')),
     settings: () =>
       delay({
-        appVersion: '0.3.0',
+        appVersion: '0.4.0',
         logFile: 'C:\\src\\Study\\astralparty\\iOS\\logs\\gui-20261124-112233.log',
         logDir: 'C:\\src\\Study\\astralparty\\iOS\\logs',
         payloadDefault: 'C:\\cesium\\payload\\CesiumLoader',

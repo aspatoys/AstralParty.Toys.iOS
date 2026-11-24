@@ -16,7 +16,7 @@ DIST = WEBUI / "dist"
 
 LOADER_ROOT = f"/Documents/{engine.LOADER_DIR}"
 
-APP_VERSION = "0.3.0"
+APP_VERSION = "0.4.0"
 
 MARKET_BASE = "https://forge.hiynet.com"
 

@@ -203,6 +203,12 @@ CesiumLoader/
 在设备上，这套东西落在 `<容器>/Documents/CesiumLoader/`，`logs/`、`data/`、`disabled_mods/`
 等目录由引导在启动时创建。
 
+**SDK 必须是「没有 user32 也能跑」的构建**：iOS 上没有 `user32.dll` / `winmm`，只会走 Win32
+后端的 SDK 会让热键模组每帧抛 `DllNotFoundException`，游戏卡在大厅里。带 Unity 兜底的构建里
+有 `MobilePlatform.MarkNativeUnavailable`，投放前的检查就认这个标记；不满足时「一键安装」会
+直接拒绝并说明原因（确实要原样投可用 `CESIUM_ALLOW_DESKTOP_SDK=1` 绕过）。「拉取最新
+CesiumLoader」也不会把这种 SDK 写进载荷，而是保留载荷里原有的那份。
+
 ## 模组启停
 
 **状态只看目录**：`mods/` 是启用，`disabled_mods/` 是停用。搬目录即可，不需要改任何配置文件。
@@ -289,6 +295,7 @@ uv run --group dev pyflakes cesium_ios host main.py gui.py
 | 现象 | 先看 |
 |---|---|
 | 报「容器里没有 CesiumLoader 目录」 | 载荷还没上去。到「设置」→「维护」点一下「拉取最新 CesiumLoader」（或自己把载荷放进 `payload/CesiumLoader/`），再点右上角「一键安装」 |
+| 报「SDK 没有退回 Unity 后端的兜底」 | 载荷里的 `sdk/CesiumLoader.SDK.dll` 是只走 Win32 的旧构建，装上去热键模组会把游戏卡死。换加载器新版本里的 SDK（带 `MobilePlatform.MarkNativeUnavailable`）再投放 |
 | `[FAIL] 缺少 Python 依赖` | 用 `uv run` 跑（会按 `pyproject.toml` 自动建 `.venv` 装依赖）；或给跑脚本的那个解释器装上 |
 | `detect` 报「缓存里找不到当前代码包」 | 游戏还没把热更下完，启动一次等下载结束 |
 | 补丁状态「未知（与本工具记录不符）」 | 游戏刚热更过，重跑一次安装 |
