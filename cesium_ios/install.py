@@ -9,8 +9,9 @@ import time
 from .catalog import Catalog, locate_bundle_dir, pick_catalog
 from .common import load_state, save_state, sha256_file
 from .device import app_version, close_device, find_game, open_device
-from .output import bad, log, ok, section
-from .patcher import ensure_patcher, extract_assets, replace_asset, run_patcher
+from .output import bad, log, ok, section, warn
+from .patcher import (bundle_injected, ensure_patcher, extract_assets, replace_asset,
+                      run_patcher)
 from .paths import ASSET_NAME, BACKUP_DIR, LOADER_DIR, ROOT, WORK_DIR
 from .payload import deploy_payload
 
@@ -41,46 +42,55 @@ async def do_install(payload: Path | None, skip_payload: bool, skip_patch: bool)
         origin = WORK_DIR / "install" / f"{inner}.orig"
         await device.pull(f"{bundle_dir}/__data", origin)
         original_hash = sha256_file(origin)
+        # 设备上可能已经是注入过的包（重复安装 / 只投放载荷）：这时它**不是**原始包，
+        # 拿它当备份会让「还原」还原出打过补丁的包，所以先认一下再决定备不备份。
+        already_patched = bundle_injected(origin)
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(origin, BACKUP_DIR / f"{inner}.data")
-        ok(f"已备份原始包 -> backups/{inner}.data  {original_hash[:16]}…")
+        if already_patched:
+            warn("设备上的代码包已经是注入过的状态，不覆盖 backups/ 里的原始包快照")
+        else:
+            shutil.copy2(origin, BACKUP_DIR / f"{inner}.data")
+            ok(f"已备份原始包 -> backups/{inner}.data  {original_hash[:16]}…")
 
         if not skip_patch:
-            section("注入")
-            exe = ensure_patcher()
-            assets = WORK_DIR / "install" / inner
-            items = extract_assets(origin, assets)
-            if ASSET_NAME not in items:
-                bad(f"包里没有 {ASSET_NAME}")
-                return 1
-            patched = WORK_DIR / "install" / f"{inner}.patched.dll"
-            output = run_patcher(exe, assets / ASSET_NAME, patched, assets)
-            for line in output.strip().splitlines():
-                log("  " + line)
-            out_bundle = WORK_DIR / "install" / f"{inner}.patched.data"
-            replace_asset(origin, ASSET_NAME, patched, out_bundle)
+            if already_patched:
+                ok("代码包已注入过，跳过注入（要从原始包重来先 restore）")
+            else:
+                section("注入")
+                exe = ensure_patcher()
+                assets = WORK_DIR / "install" / inner
+                items = extract_assets(origin, assets)
+                if ASSET_NAME not in items:
+                    bad(f"包里没有 {ASSET_NAME}")
+                    return 1
+                patched = WORK_DIR / "install" / f"{inner}.patched.dll"
+                output = run_patcher(exe, assets / ASSET_NAME, patched, assets)
+                for line in output.strip().splitlines():
+                    log("  " + line)
+                out_bundle = WORK_DIR / "install" / f"{inner}.patched.data"
+                replace_asset(origin, ASSET_NAME, patched, out_bundle)
 
-            after = extract_assets(out_bundle, WORK_DIR / "install" / f"{inner}.check")
-            changed = [n for n in items if after.get(n) != items[n]]
-            if changed != [ASSET_NAME]:
-                bad(f"完整性校验异常，被改动的资产：{changed}")
-                return 1
-            ok(f"其余 {len(items) - 1} 个资产字节一致")
+                after = extract_assets(out_bundle, WORK_DIR / "install" / f"{inner}.check")
+                changed = [n for n in items if after.get(n) != items[n]]
+                if changed != [ASSET_NAME]:
+                    bad(f"完整性校验异常，被改动的资产：{changed}")
+                    return 1
+                ok(f"其余 {len(items) - 1} 个资产字节一致")
 
-            await device.write(f"{bundle_dir}/__data", out_bundle.read_bytes())
-            readback = WORK_DIR / "install" / f"{inner}.readback.data"
-            await device.pull(f"{bundle_dir}/__data", readback)
-            expect = sha256_file(out_bundle)
-            if sha256_file(readback) != expect:
-                bad("回读校验不一致，写入可能失败")
-                return 1
-            ok(f"已写入代码包并回读校验  {expect[:16]}…")
-            state["installed"] = {
-                "inner": inner, "outer": state.get("bundle_outer"),
-                "original_sha256": original_hash, "patched_sha256": expect,
-                "at": time.strftime("%Y-%m-%d %H:%M:%S"),
-            }
-            save_state(state)
+                await device.write(f"{bundle_dir}/__data", out_bundle.read_bytes())
+                readback = WORK_DIR / "install" / f"{inner}.readback.data"
+                await device.pull(f"{bundle_dir}/__data", readback)
+                expect = sha256_file(out_bundle)
+                if sha256_file(readback) != expect:
+                    bad("回读校验不一致，写入可能失败")
+                    return 1
+                ok(f"已写入代码包并回读校验  {expect[:16]}…")
+                state["installed"] = {
+                    "inner": inner, "outer": state.get("bundle_outer"),
+                    "original_sha256": original_hash, "patched_sha256": expect,
+                    "at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                }
+                save_state(state)
 
         if not skip_payload:
             section("载荷")

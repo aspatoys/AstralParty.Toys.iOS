@@ -9,7 +9,8 @@ import sys
 
 from .common import decode_output
 from .output import log
-from .paths import BOOT_DLL, BOOT_METHOD, BOOT_TYPE, LOADER_DIR, TOOLS
+from .paths import (ASSET_NAME, BOOT_DLL, BOOT_METHOD, BOOT_TYPE, LOADER_DIR, PATCH_MARKER,
+                    PATCH_MARKER_UTF16, TOOLS)
 
 
 def patcher_path() -> Path:
@@ -73,6 +74,19 @@ def extract_assets(bundle: Path, outdir: Path) -> dict[str, bytes]:
     for name, data in items.items():
         (outdir / name).write_bytes(data)
     return items
+
+
+def bundle_injected(bundle: Path) -> bool | None:
+    """包里那份 `AstralParty.Runtime.dll` 是不是已经注入过（找不到资产时返回 None）。"""
+    tool = _import_bundle_tool()
+    try:
+        items = tool.read_all(str(bundle))
+    except Exception:  # noqa: BLE001
+        return None
+    data = items.get(ASSET_NAME)
+    if data is None:
+        return None
+    return PATCH_MARKER in data or PATCH_MARKER_UTF16 in data
 
 
 def replace_asset(bundle: Path, asset: str, new_file: Path, out_bundle: Path) -> None:
