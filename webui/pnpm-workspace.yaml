@@ -1,4 +1,5 @@
-# pnpm 10 起，构建脚本白名单等设置从 package.json 的 "pnpm" 字段搬到这里。
+# pnpm 12 用 allowBuilds 控制「哪些依赖允许跑安装脚本」。
 # esbuild 需要一个安装期脚本去放好它自己的原生二进制，否则 vite build 会失败。
-onlyBuiltDependencies:
-  - esbuild
+# 需要改白名单时用 `pnpm approve-builds`，不要手抄这一节。
+allowBuilds:
+  esbuild: true

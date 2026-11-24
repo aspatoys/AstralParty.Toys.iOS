@@ -18,8 +18,20 @@
 //
 // 之前那版探针用了 7 个调用 + 在 <Module> 上新增方法，明显越界，已废弃。
 
+using System.Text;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+
+// 输出固定用 UTF-8：调用方（Python）按 UTF-8 读；接了控制台时顺带把控制台代码页切成
+// UTF-8，中文提示在管道里和控制台上都是对的（Windows 默认 GBK，管道里按 UTF-8 解会乱码）。
+try
+{
+    Console.OutputEncoding = new UTF8Encoding(false);
+}
+catch (IOException)
+{
+    // 没有控制台句柄时保持默认，不影响注入
+}
 
 if (args.Length < 3)
 {

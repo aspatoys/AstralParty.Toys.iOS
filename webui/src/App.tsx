@@ -16,7 +16,7 @@ import { Overview } from './components/Overview';
 import { Mods } from './components/Mods';
 import { Market } from './components/Market';
 import { Custom } from './components/Custom';
-import { Files } from './components/Files';
+import { Files } from './components/files';
 import { Settings } from './components/Settings';
 import { Output } from './components/Output';
 
@@ -254,7 +254,13 @@ export default function App() {
           )}
         </Box>
 
-        <Output lines={lines} task={task} onClear={() => setLines([])} />
+        <Output
+          lines={lines}
+          task={task}
+          onClear={() => setLines([])}
+          logFile={settings.data?.logFile}
+          onOpenLogs={() => void bridge.open_logs()}
+        />
       </Stack>
     </Group>
   );

@@ -1,0 +1,23 @@
+[project]
+name = "astralparty-toys-ios"
+version = "0.3.0"
+description = "在 iOS 上为《吉星派对 / Astral Party》加载 CesiumLoader 模组：命令行工具与图形界面"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "AGPL-3.0-only"
+
+# 运行时要的东西：设备通道（house_arrest）、UnityFS 资产读写、图形界面。
+# 依赖只在这里声明一次；main.py / gui.py / tools/ 下的脚本都共用这个环境。
+dependencies = [
+    "pymobiledevice3>=11.63",
+    "UnityPy==1.25.3",
+    "pywebview>=5",
+]
+
+[dependency-groups]
+# 只给开发用：静态检查（`uv run --group dev pyflakes cesium_ios host`）
+dev = ["pyflakes>=3.2"]
+
+[tool.uv]
+# 这是个「脚本 + 前端」的项目，本身不作为库安装，只借 uv 管依赖与虚拟环境。
+package = false

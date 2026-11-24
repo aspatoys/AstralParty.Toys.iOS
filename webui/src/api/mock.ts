@@ -1,28 +1,11 @@
-import type { Bridge, ModInfo, Report } from './types';
-
-declare global {
-  interface Window {
-    pywebview?: { api?: Bridge };
-  }
-}
+import type { Bridge, ModInfo, Report } from '../types';
 
 /**
- * 拿宿主桥。
+ * 假桥：pnpm dev 直接在浏览器里开界面、或者设备没连上时用的演示数据。
  *
- * 在 pywebview 里它会稍晚一点注入；如果等到超时还没有（比如 `pnpm dev` 直接在浏览器里
- * 调界面），就退回内置的假数据，这样前端可以脱离设备单独开发。
+ * 方法名和 host/*_api.py 暴露的一致，所以页面代码不需要为「演示模式」写分支；
+ * 判据是 isMock(bridge)（见 ./index）。
  */
-export async function getBridge(timeoutMs = 1500): Promise<Bridge> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const api = window.pywebview?.api;
-    if (api && typeof api.drain === 'function') return api;
-    await new Promise((resolve) => setTimeout(resolve, 60));
-  }
-  return createMockBridge();
-}
-
-export const isMock = (bridge: Bridge): boolean => (bridge as { __mock?: boolean }).__mock === true;
 
 /* ------------------------------------------------------------------ 假桥 */
 
@@ -96,7 +79,7 @@ function delay<T>(value: T, ms = 260): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
-function createMockBridge(): Bridge {
+export function createMockBridge(): Bridge {
   let task = { name: null as string | null, running: false, ok: null as boolean | null, error: null as string | null };
   let mods = MOCK_MODS;
 
@@ -216,12 +199,27 @@ function createMockBridge(): Bridge {
           { name: 'CesiumLoader', path: `${path}/CesiumLoader`, dir: true, bytes: null, mtime: '' },
           { name: 'com.unity.addressables', path: `${path}/com.unity.addressables`, dir: true, bytes: null, mtime: '' },
           { name: 'DecodedBanks', path: `${path}/DecodedBanks`, dir: true, bytes: null, mtime: '' },
-          { name: 'cesium_probe.txt', path: `${path}/cesium_probe.txt`, dir: false, bytes: 19, mtime: '2026-11-24 01:18:01' },
+          { name: 'cesium_probe.txt', path: `${path}/cesium_probe.txt`, dir: false, bytes: 19, mtime: '2026-11-24 01:18' },
+          { name: 'bootstrap.log', path: `${path}/bootstrap.log`, dir: false, bytes: 620, mtime: '2026-11-24 01:32' },
+          { name: 'AstralParty.Runtime.dll.bak', path: `${path}/AstralParty.Runtime.dll.bak`, dir: false, bytes: 11761152, mtime: '2026-11-23 22:04' },
         ],
       }),
     fs_file: (path: string) =>
       delay({ path, bytes: 19, binary: false, truncated: false, text: '（演示数据）cesium ios probe ok\n' }),
-    fs_delete: () => delay({ ok: true }),
+    fs_open: (path: string) =>
+      delay({ path, local: `C:\\Users\\shimikoi\\AppData\\Local\\Temp\\cesium-ios-open\\${path.split('/').pop()}` }),
+    fs_mkdir: (_base: string, name: string) => delay(run(`新建文件夹 ${name}`)),
+    fs_rename: (_path: string, name: string) => delay(run(`重命名为 ${name}`)),
+    fs_delete: (paths: string | string[]) =>
+      delay(run(`删除 ${Array.isArray(paths) ? paths.length : 1} 项`)),
+    fs_transfer: (sources: string[], _target: string, mode = 'copy') =>
+      delay(run(`${mode === 'move' ? '移动' : '复制'} ${sources.length} 项`)),
+    fs_pick_dir: () => delay({ path: 'C:\\Users\\shimikoi\\Downloads' }, 60),
+    fs_pick_files: () => delay({ paths: ['C:\\Users\\shimikoi\\Downloads\\deepseek_chan_1.zip'] }, 60),
+    fs_download: (sources: string[]) => delay(run(`下载 ${sources.length} 项`)),
+    fs_upload: (_target: string, localPaths?: string[] | null) =>
+      delay(run(`上传 ${localPaths?.length ?? 1} 项`)),
+    fs_drops: () => delay([], 0),
 
     skins: () =>
       delay({
@@ -233,9 +231,12 @@ function createMockBridge(): Bridge {
     pick_zip: () => delay({ path: 'C:\\Users\\shimikoi\\OneDrive\\Downloads\\deepseek_chan_1.zip' }),
     skins_import: () => delay(run('导入卡面')),
     skins_activate: (name: string) => delay({ active: name, enabled: true }),
+    open_logs: () => delay({ ok: true, path: 'C:\\src\\Study\\astralparty\\iOS\\logs' }, 60),
     settings: () =>
       delay({
-        appVersion: '0.2.0',
+        appVersion: '0.3.0',
+        logFile: 'C:\\src\\Study\\astralparty\\iOS\\logs\\gui-20261124-112233.log',
+        logDir: 'C:\\src\\Study\\astralparty\\iOS\\logs',
         payloadDefault: 'C:\\cesium\\payload\\CesiumLoader',
         market: {
           baseUrl: 'https://forge.hiynet.com',

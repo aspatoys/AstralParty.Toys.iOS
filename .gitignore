@@ -5,10 +5,14 @@ work/
 device/
 payload/
 catalog_*.json
+logs/
 
 # Python
 __pycache__/
 *.pyc
+
+# uv 的虚拟环境（依赖声明在 pyproject.toml，uv.lock 要入库）
+.venv/
 
 # 前端依赖（dist 是预构建产物，要入库）
 webui/node_modules/
