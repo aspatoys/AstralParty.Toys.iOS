@@ -9,8 +9,9 @@ from .common import sha256_bytes, sha256_file
 from .device import Device
 from .patcher import extract_assets
 from .payload import resolve_payload
-from .paths import (ASSET_NAME, BOOT_DLL, LOADER_DIR, PATCH_MARKER, PATCH_MARKER_UTF16, ROOT,
-                    WORK_DIR)
+from .paths import (ASSET_NAME, BOOT_DLL, BOOT_TYPE, LEGACY_BOOT_DLL, LEGACY_BOOT_TYPE,
+                    LOADER_DIR, patch_with_current_type, patch_with_legacy_type, pick_api,
+                    pick_bootstrap, ROOT, WORK_DIR)
 
 async def collect(device: Device, version: str, state: dict) -> dict:
     report: dict = {"bundle_id": device.bundle_id, "app_version": version, "issues": []}
@@ -50,12 +51,19 @@ async def collect(device: Device, version: str, state: dict) -> dict:
     report["bundle_sha256"] = current_hash
 
     injected = False
+    stale = False
     try:
         assets = extract_assets(local_bundle, WORK_DIR / "current" / inner)
         dll = assets.get(ASSET_NAME, b"")
-        injected = PATCH_MARKER in dll or PATCH_MARKER_UTF16 in dll
+        injected = patch_with_current_type(dll)
+        stale = patch_with_legacy_type(dll)
+        if stale:
+            report["issues"].append(
+                f"代码包里的补丁烧的是旧引导类型名 {LEGACY_BOOT_TYPE} —— "
+                f"需重新注入（新载荷找 {BOOT_DLL} / {BOOT_TYPE}，旧补丁加载不到引导）")
         report["asset_count"] = len(assets)
         report["injected"] = injected
+        report["patch_stale"] = stale
         report["runtime_dll_bytes"] = len(dll)
         report["runtime_dll_sha256"] = sha256_bytes(dll)
     except Exception as error:  # noqa: BLE001
@@ -66,6 +74,8 @@ async def collect(device: Device, version: str, state: dict) -> dict:
         report["patch_state"] = "patched"
     elif recorded.get("inner") == inner and recorded.get("original_sha256") == current_hash:
         report["patch_state"] = "clean"
+    elif stale:
+        report["patch_state"] = "stale"
     elif injected:
         report["patch_state"] = "patched-external"
     else:
@@ -91,8 +101,14 @@ async def collect(device: Device, version: str, state: dict) -> dict:
         loader["present"] = True
         entries = await device.ls(root)
         loader["entries"] = entries
-        loader["has_bootstrap"] = BOOT_DLL in entries
-        loader["has_api"] = "CesiumAndroidApi.dll" in entries
+        bootstrap = pick_bootstrap(entries)
+        loader["bootstrap_dll"] = bootstrap
+        loader["has_bootstrap"] = bootstrap is not None
+        loader["bootstrap_stale"] = bootstrap == LEGACY_BOOT_DLL
+        if loader["bootstrap_stale"]:
+            report["issues"].append(
+                f"引导 DLL 还是旧名 {LEGACY_BOOT_DLL} —— 需重装一次加载器（新名 {BOOT_DLL}）")
+        loader["has_api"] = pick_api(entries) is not None
         mods_dir = f"{root}/mods"
         mods = await device.ls(mods_dir) if await device.exists(mods_dir) else []
         loader["mods"] = mods

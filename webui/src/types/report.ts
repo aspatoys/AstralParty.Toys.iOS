@@ -7,6 +7,9 @@ export interface LoaderInfo {
   payload?: string;
   payload_present?: boolean;
   has_bootstrap?: boolean;
+  /** 引导 DLL 是旧名（CesiumLoader.Android.Bootstrap.dll）—— 需重装一次加载器。 */
+  bootstrap_stale?: boolean;
+  bootstrap_dll?: string | null;
   has_api?: boolean;
   mods?: string[];
   mod_count?: number;
@@ -18,7 +21,7 @@ export interface LoaderInfo {
   mod_errors_log?: string;
 }
 
-export type PatchState = 'patched' | 'patched-external' | 'clean' | 'unknown';
+export type PatchState = 'patched' | 'patched-external' | 'clean' | 'stale' | 'unknown';
 
 export interface Report {
   bundle_id: string;

@@ -9,8 +9,8 @@ import sys
 
 from .common import decode_output
 from .output import log
-from .paths import (ASSET_NAME, BOOT_DLL, BOOT_METHOD, BOOT_TYPE, LOADER_DIR, PATCH_MARKER,
-                    PATCH_MARKER_UTF16, TOOLS)
+from .paths import (ASSET_NAME, BOOT_DLL, BOOT_METHOD, BOOT_TYPE, LOADER_DIR,
+                    patch_with_current_type, patch_with_legacy_type, TOOLS)
 
 
 def patcher_path() -> Path:
@@ -77,16 +77,32 @@ def extract_assets(bundle: Path, outdir: Path) -> dict[str, bytes]:
 
 
 def bundle_injected(bundle: Path) -> bool | None:
-    """包里那份 `AstralParty.Runtime.dll` 是不是已经注入过（找不到资产时返回 None）。"""
+    """包里那份 `AstralParty.Runtime.dll` 是不是**当前**形态的注入（找不到资产时返回 None）。
+
+    只看新引导类型名的标记：旧补丁（烧的是旧类型名）会在新载荷下加载不到引导，
+    那种情况由 `bundle_stale` 单独判成「需重新注入」，绝不能当成「已注入」而跳过。
+    """
+    data = _runtime_asset(bundle)
+    if data is None:
+        return None
+    return patch_with_current_type(data)
+
+
+def bundle_stale(bundle: Path) -> bool | None:
+    """包里是「旧名补丁」——已注入过，但补丁里的类型名是旧的，需要重新注入（找不到资产时返回 None）。"""
+    data = _runtime_asset(bundle)
+    if data is None:
+        return None
+    return patch_with_legacy_type(data)
+
+
+def _runtime_asset(bundle: Path) -> bytes | None:
     tool = _import_bundle_tool()
     try:
         items = tool.read_all(str(bundle))
     except Exception:  # noqa: BLE001
         return None
-    data = items.get(ASSET_NAME)
-    if data is None:
-        return None
-    return PATCH_MARKER in data or PATCH_MARKER_UTF16 in data
+    return items.get(ASSET_NAME)
 
 
 def replace_asset(bundle: Path, asset: str, new_file: Path, out_bundle: Path) -> None:

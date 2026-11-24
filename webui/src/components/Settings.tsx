@@ -176,7 +176,7 @@ export function Settings({ bridge, task, settings, onChanged }: Props) {
         <Text size="sm" c="dimmed" mt={4}>
           <b>注入代码包</b>：改写容器里那份热更代码包，让游戏启动时加载引导。
           <br />
-          <b>投放载荷</b>：把 <code>CesiumLoader.Android.Bootstrap.dll</code>、<code>sdk/</code>、
+          <b>投放载荷</b>：把 <code>CesiumLoader.Mobile.Bootstrap.dll</code>、<code>sdk/</code>、
           <code>mods/</code> 写进 <code>Documents/CesiumLoader/</code>。
         </Text>
 

@@ -49,9 +49,11 @@ def print_report(report: dict) -> None:
         "patched": "已注入",
         "clean": "未注入（原始包，与本工具记录一致）",
         "patched-external": "已注入（非本工具安装，无本地记录）",
+        "stale": "已过期（补丁里是旧引导类型名，需重新注入）",
         "unknown": "未知（与本工具记录不符，可能游戏刚热更过）",
     }.get(state, "?")
-    log(f"  补丁状态    : {label}（程序集内标记：{'有' if report.get('injected') else '无'}）")
+    log(f"  补丁状态    : {label}（程序集内标记：{'有' if report.get('injected') else '无'}"
+        + ("，旧名补丁" if report.get("patch_stale") else "") + "）")
 
     loader = report.get("loader") or {}
     section("加载器")
@@ -59,8 +61,10 @@ def print_report(report: dict) -> None:
         log("  未安装")
     else:
         log(f"  根目录      : {loader['root']}")
-        log(f"  引导 DLL    : {'有' if loader.get('has_bootstrap') else '缺'}")
-        log(f"  安卓 API    : {'有' if loader.get('has_api') else '无'}")
+        bootstrap_state = ("有（旧名，需重装）" if loader.get("bootstrap_stale")
+                           else "有" if loader.get("has_bootstrap") else "缺")
+        log(f"  引导 DLL    : {bootstrap_state}")
+        log(f"  移动 API    : {'有' if loader.get('has_api') else '无'}")
         log(f"  模组        : {loader.get('mod_count', 0)} 个")
         if loader.get("mods"):
             log("                " + "、".join(loader["mods"][:12]) + ("…" if len(loader["mods"]) > 12 else ""))

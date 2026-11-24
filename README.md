@@ -194,15 +194,20 @@ python main.py
 
 ```
 CesiumLoader/
-├─ CesiumLoader.Android.Bootstrap.dll   引导程序集（与安卓端同一份，来自安卓发行版的托管载荷）
-├─ CesiumAndroidApi.dll                 悬浮窗 API（可选，同上）
-├─ sdk/CesiumLoader.SDK.dll             模组 SDK（来自 CesiumLoader 官方 Release）
+├─ CesiumLoader.Mobile.Bootstrap.dll     引导程序集（与安卓端同一份，来自安卓发行版的托管载荷）
+├─ CesiumLoader.Mobile.API.dll           悬浮窗 API（可选，同上）
+├─ sdk/CesiumLoader.SDK.dll              模组 SDK（来自 CesiumLoader 官方 Release）
 └─ mods/<ModId>/
    ├─ <ModId>.dll
    ├─ <ModId>.json                      sidecar（id/版本/权限/平台）
    ├─ config.json                       玩家配置
    └─ data/、sounds/、icons/…            模组自己的资源
 ```
+
+加载器 3.9.0 起这两个程序集改名（旧的 `CesiumLoader.Android.Bootstrap.dll` / `CesiumAndroidApi.dll`）。
+**这一版是破坏性版本，需要重装一次加载器**：读取路径同时认新旧两个名字（旧名时提示「需重装」），
+写入一律用新名。注入到代码包里的引导调用是按名字找程序集的，因此**改名后必须重新注入代码包**：
+检测报告会把只带旧类型名的补丁判成「已过期（需重新注入）」，「一键安装」会自动重注入。
 
 在设备上，这套东西落在 `<容器>/Documents/CesiumLoader/`，`logs/`、`data/`、`disabled_mods/`
 等目录由引导在启动时创建。

@@ -9,6 +9,7 @@ const PATCH: Record<PatchState, { label: string; color: string }> = {
   patched: { label: '已注入', color: 'teal' },
   'patched-external': { label: '已注入（外部安装）', color: 'teal' },
   clean: { label: '未注入', color: 'yellow' },
+  stale: { label: '已过期（旧引导名，需重新注入）', color: 'orange' },
   unknown: { label: '未知', color: 'red' },
 };
 
@@ -139,8 +140,11 @@ export function Overview({ report, loading, taskRunning, onRefresh }: Props) {
           {loader.present ? (
             <Stack gap={6}>
               <Field label="根目录" value={loader.root} />
-              <Field label="引导 DLL" value={loader.has_bootstrap ? '有' : '缺'} />
-              <Field label="安卓 API" value={loader.has_api ? '有' : '无'} />
+              <Field
+                label="引导 DLL"
+                value={loader.bootstrap_stale ? '有（旧名，需重装）' : loader.has_bootstrap ? '有' : '缺'}
+              />
+              <Field label="移动 API" value={loader.has_api ? '有' : '无'} />
               <Field label="模组" value={`${loader.mod_count ?? 0} 个`} />
             </Stack>
           ) : (

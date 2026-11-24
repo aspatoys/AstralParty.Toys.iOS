@@ -4,8 +4,9 @@ iOS 的载荷由两处官方产物拼成：
 
 - **CesiumLoader 发行包**（`higashitaniyume/CesiumLoader` 的 `cesium-loader.zip`）里是
   `AstralParty_ModLoader/sdk/CesiumLoader.SDK.dll` 与 `AstralParty_ModLoader/mods/**`；
-- **安卓引导**（`CesiumLoader.Android.Bootstrap.dll`，可选还有 `CesiumAndroidApi.dll`）不在
-  发行包里，它跟着安卓 App 走，得从安卓发行包的 APK 资产 `assets/cesium/` 里取。
+- **移动引导**（`CesiumLoader.Mobile.Bootstrap.dll`，可选还有 `CesiumLoader.Mobile.API.dll`）不在
+  发行包里，它跟着安卓 App（或加载器 3.9.0 起的安卓托管载荷）走，得从安卓发行包里取；
+  旧名 `CesiumLoader.Android.Bootstrap.dll` / `CesiumAndroidApi.dll` 只在读取时兜底。
 
 两个包都按各自 `version.json` 里的 SHA-256 校验；下载落在 `work/release/`，命中就不重复下。
 """
@@ -21,8 +22,9 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-from .output import log, warn
-from .paths import LOADER_DIR, ROOT, WORK_DIR
+from .output import warn
+from .paths import (API_DLL, API_DLLS, BOOT_DLL, BOOT_DLLS, LEGACY_API_DLL, LEGACY_BOOT_DLL,
+                    LOADER_DIR, ROOT, WORK_DIR)
 from .payload import SDK_RELATIVE, sdk_bytes_ios_capable
 
 LOADER_REPO = "higashitaniyume/CesiumLoader"
@@ -38,12 +40,18 @@ SKIP_NAMES = {"config.json", "mod.cfg"}
 # 发行包里的托管部分都在这个前缀下，其中只有下面这两类要上设备
 MANAGED_PREFIX = "AstralParty_ModLoader/"
 
-BOOTSTRAP_DLL = "CesiumLoader.Android.Bootstrap.dll"
-ANDROID_API_DLL = "CesiumAndroidApi.dll"
+BOOTSTRAP_DLL = BOOT_DLL
+ANDROID_API_DLL = API_DLL
+# 兼容读：载荷里可能还是旧名（改名前的载荷），写一律写新名。
+LEGACY_BOOTSTRAP_DLL = LEGACY_BOOT_DLL
+LEGACY_ANDROID_API_DLL = LEGACY_API_DLL
 # 新版安卓发行版的托管载荷 zip 里：bootstrap/ 与根目录；老版本只能从 APK 的 assets/cesium/ 里取
 MANAGED_BOOTSTRAP = "bootstrap/" + BOOTSTRAP_DLL
 APK_BOOTSTRAP = "assets/cesium/bootstrap/" + BOOTSTRAP_DLL
 APK_API = "assets/cesium/" + ANDROID_API_DLL
+MANAGED_LEGACY_BOOTSTRAP = "bootstrap/" + LEGACY_BOOTSTRAP_DLL
+APK_LEGACY_BOOTSTRAP = "assets/cesium/bootstrap/" + LEGACY_BOOTSTRAP_DLL
+LEGACY_APK_API = "assets/cesium/" + LEGACY_ANDROID_API_DLL
 
 DOWNLOAD_LIMIT = 256 * 1024 * 1024
 
@@ -192,15 +200,40 @@ def extract_loader(zip_path: Path, target_root: Path, progress=None) -> dict:
     return {"files": written, "mods": sorted(mods), "skipped": skipped, "sdk": sdk_status}
 
 
+def _first_entry(archive: zipfile.ZipFile, names) -> str | None:
+    """包里的第一个存在的条目名（新名优先，旧名兜底）。"""
+    available = set(archive.namelist())
+    for name in names:
+        if name in available:
+            return name
+    return None
+
+
+def _extract_any(archive: zipfile.ZipFile, names, target: Path) -> str | None:
+    """按候选名找条目并写到 `target`（写出去的永远是 target 的新名路径）。"""
+    found = _first_entry(archive, names)
+    if found is None:
+        return None
+    _extract_entry(archive, found, target)
+    return found
+
+
+def _payload_has(root: Path, names) -> bool:
+    """载荷里有没有这几个名字中的任意一个（双名兼容读）。"""
+    return any((root / name).is_file() for name in names)
+
+
 def ensure_android_assets(target_root: Path, force: bool = False, progress=None) -> dict:
     """取引导 DLL / 悬浮窗 API（载荷里已经有就不动）。
 
     新版的安卓发行版会额外挂一个 `cesium-loader-android-managed-<ver>.zip`（引导 DLL + SDK +
     悬浮窗 API），优先用它；老发行版没有这个资产时才退回从 APK 里抠（37 MB，慢）。
+
+    读取认新旧两个名字（改名前的载荷里是旧名）；写进载荷的永远是**新名**。
     """
     result = {"bootstrap": "kept", "android_api": "kept", "source": None}
-    need_bootstrap = force or not (target_root / BOOTSTRAP_DLL).is_file()
-    need_api = not (target_root / ANDROID_API_DLL).is_file()
+    need_bootstrap = force or not _payload_has(target_root, BOOT_DLLS)
+    need_api = not _payload_has(target_root, API_DLLS)
     if not need_bootstrap and not need_api:
         if progress:
             progress("  引导 DLL 与悬浮窗 API 已存在，跳过安卓包")
@@ -214,22 +247,22 @@ def ensure_android_assets(target_root: Path, force: bool = False, progress=None)
         bundle = download(_package(manifest, "loaderManaged"), progress,
                           label="安卓托管载荷（引导 DLL / SDK）")
         with zipfile.ZipFile(bundle) as archive:
-            names = set(archive.namelist())
-            if need_bootstrap and MANAGED_BOOTSTRAP in names:
-                _extract_entry(archive, MANAGED_BOOTSTRAP, target_root / BOOTSTRAP_DLL)
+            if need_bootstrap and _extract_any(
+                    archive, (MANAGED_BOOTSTRAP, MANAGED_LEGACY_BOOTSTRAP),
+                    target_root / BOOTSTRAP_DLL):
                 result["bootstrap"] = "updated"
-            if need_api and ANDROID_API_DLL in names:
-                _extract_entry(archive, ANDROID_API_DLL, target_root / ANDROID_API_DLL)
+            if need_api and _extract_any(archive, (ANDROID_API_DLL, LEGACY_ANDROID_API_DLL),
+                                         target_root / ANDROID_API_DLL):
                 result["android_api"] = "updated"
         result["source"] = f"{bundle.name}（App {version}，不用解 APK）"
     else:
         apk = download(_package(manifest, "androidApk"), progress, label="安卓 App（只为取引导 DLL）")
         with zipfile.ZipFile(apk) as archive:
-            if need_bootstrap:
-                _extract_entry(archive, APK_BOOTSTRAP, target_root / BOOTSTRAP_DLL)
+            if need_bootstrap and _extract_any(
+                    archive, (APK_BOOTSTRAP, APK_LEGACY_BOOTSTRAP), target_root / BOOTSTRAP_DLL):
                 result["bootstrap"] = "updated"
-            if need_api and APK_API in archive.namelist():
-                _extract_entry(archive, APK_API, target_root / ANDROID_API_DLL)
+            if need_api and _extract_any(archive, (APK_API, LEGACY_APK_API),
+                                         target_root / ANDROID_API_DLL):
                 result["android_api"] = "updated"
         result["source"] = f"{apk.name}（App {version}）"
     if progress:
@@ -266,7 +299,7 @@ def pull_latest(target_root: Path | None = None, with_android: bool = True,
     summary["android"] = (ensure_android_assets(root, force=force_android, progress=progress)
                           if with_android else {"bootstrap": "skipped", "android_api": "skipped", "apk": None})
 
-    missing = [name for name in (BOOTSTRAP_DLL,) if not (root / name).is_file()]
+    missing = [] if _payload_has(root, BOOT_DLLS) else [BOOT_DLL]
     if not (root / SDK_RELATIVE).is_file():
         missing.append(f"{SDK_RELATIVE}（要在没有 user32 的平台上也能跑的构建）")
     summary["missing"] = missing

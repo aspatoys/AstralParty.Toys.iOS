@@ -59,6 +59,8 @@ const MOCK_REPORT: Report = {
     present: true,
     root: '/Documents/CesiumLoader',
     has_bootstrap: true,
+    bootstrap_dll: 'CesiumLoader.Mobile.Bootstrap.dll',
+    bootstrap_stale: false,
     has_api: true,
     mod_count: MOCK_MODS.length,
     mods_ok: MOCK_MODS.length,
