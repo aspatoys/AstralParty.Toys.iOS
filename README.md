@@ -54,12 +54,15 @@ uv run gui.py
 
 ### 2. 准备载荷
 
-界面只负责把载荷推上设备，**载荷本身不在这个仓库里**（`payload/` 是加载器那边的构建产物）。
-在「设置」→「维护」里点 **拉取最新 CesiumLoader**：工具从 CesiumLoader 官方 Release 取 SDK 与
-全部模组，再从安卓发行包的 APK 资产里取引导 DLL，写进 `payload/CesiumLoader/`。
-下载缓存在 `work/release/`；载荷里已有的配置（模组 `config.json`）和额外文件不会被覆盖。
+仓库里的 `payload/CesiumLoader/` 已经带了一份能用的载荷（引导 DLL + SDK + 全部模组），
+所以按第 3 步直接装就行，这一步可以跳过。
 
-也可以不用它，自己把加载器发行包解开到 `payload/CesiumLoader/`，内容就是「载荷布局」那一节列的。
+要更新到最新一套时，在「设置」→「维护」里点 **拉取最新 CesiumLoader**：工具从 CesiumLoader
+官方 Release 取 SDK 与全部模组，再从安卓发行包的 APK 资产里取引导 DLL，写进
+`payload/CesiumLoader/`。下载缓存在 `work/release/`；载荷里已有的模组 `config.json`
+和额外文件不会被覆盖，发行包里跑不了 iOS 的 SDK 也不会写进来。
+
+也可以自己把加载器发行包解开到 `payload/CesiumLoader/`，内容就是「载荷布局」那一节列的。
 
 没有载荷时界面会提示「容器里没有 CesiumLoader 目录」，点「一键安装」也会因为找不到载荷而失败
 （底部输出里是「载荷目录不存在」）。已经有载荷时也可以在「设置」页指到别的目录。
@@ -274,7 +277,7 @@ AstralParty.Toys.iOS/
 │  ├─ scan_cache.py             扫缓存并与 catalog 对账（排查用）
 │  ├─ decode_catalog.py         解 Addressables catalog（排查用）
 │  └─ find_code_bundle.py       由资产键反查承载它的 bundle（排查用）
-├─ payload/CesiumLoader/        载荷（自行放入，不入库）
+├─ payload/CesiumLoader/        载荷（引导 DLL + SDK + 模组，随仓库带一份）
 ├─ backups/                     原始代码包备份
 ├─ logs/                        界面 / 命令行的输出日志（不入库，保留最近 20 份）
 ├─ work/                        解包 / 注入过程文件（不入库）
