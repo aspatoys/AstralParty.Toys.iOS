@@ -1,0 +1,1 @@
+{"id": "CesiumOverlayMod", "name": "Cesium Android FloatingWindow", "version": "1.0.0", "author": "TenkinMori/囚鱼玖", "description": "为CesiumLoader安卓端定制的悬浮窗口", "sdkVersion": "2.8.6", "permissions": 141, "platforms": ["android"], "dependencies": []}

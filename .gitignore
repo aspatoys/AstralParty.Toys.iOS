@@ -3,7 +3,6 @@ state.json
 backups/
 work/
 device/
-payload/
 catalog_*.json
 logs/
 
